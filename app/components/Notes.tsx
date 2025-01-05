@@ -2,7 +2,7 @@
 
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { PencilIcon, Bold, Italic, List, Undo, Redo, Download, Trash2, FileText } from 'lucide-react';
 import { getNote, saveNote } from '../lib/notes';
 import { formatDistanceToNow } from 'date-fns';
@@ -16,6 +16,7 @@ export function Notes({ questionId }: NotesProps) {
   const [lastEdited, setLastEdited] = useState<string | null>(null);
   const [wordCount, setWordCount] = useState(0);
   const { trackEvent } = useAnalytics();
+  const initialLoadDone = useRef(false);
 
   const editor = useEditor({
     extensions: [
@@ -41,6 +42,8 @@ export function Notes({ questionId }: NotesProps) {
       },
     },
     onUpdate: ({ editor }) => {
+      if (!initialLoadDone.current) return;
+      
       const content = editor.getHTML();
       const text = editor.getText();
       const words = text.trim().split(/\s+/).filter(word => word.length > 0).length;
@@ -63,17 +66,18 @@ export function Notes({ questionId }: NotesProps) {
 
   // Load initial content
   useEffect(() => {
-    if (!editor || editor.isDestroyed) return;
+    if (!editor || editor.isDestroyed || initialLoadDone.current) return;
 
     const note = getNote(questionId);
-    if (!note) return;
+    if (!note) {
+      initialLoadDone.current = true;
+      return;
+    }
 
     const currentContent = editor.getHTML();
     const isEmptyEditor = currentContent === '<p></p>' || currentContent === '';
-    const hasContentChanged = note.content && note.content !== currentContent;
-
-    // Only update if we really need to
-    if ((isEmptyEditor && note.content) || (hasContentChanged && note.content)) {
+    
+    if (isEmptyEditor || note.content !== currentContent) {
       editor.commands.setContent(note.content, false);
       setLastEdited(note.lastEdited);
       
@@ -88,7 +92,9 @@ export function Notes({ questionId }: NotesProps) {
         note.content.length
       );
     }
-  }, [questionId, editor, trackEvent]); // Add editor and trackEvent to dependencies
+    
+    initialLoadDone.current = true;
+  }, [questionId, editor, trackEvent]);
 
   const handleDownloadMarkdown = () => {
     if (!editor) return;
