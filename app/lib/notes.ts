@@ -28,4 +28,16 @@ export function saveNote(questionId: string, content: string): void {
     lastEdited: new Date().toISOString()
   };
   localStorage.setItem(NOTES_STORAGE_KEY, JSON.stringify(notes));
+}
+
+export function clearNotes(): boolean {
+  if (typeof window === 'undefined') return false;
+  
+  try {
+    localStorage.removeItem(NOTES_STORAGE_KEY);
+    return true;
+  } catch (error) {
+    console.error('Error clearing notes from localStorage:', error);
+    return false;
+  }
 } 

@@ -4,6 +4,8 @@ import { Category } from '../types';
 import { Progress } from '../components/ui/Progress';
 import Image from 'next/image';
 import { useState } from 'react';
+import { clearProgress } from '../lib/progress';
+import { clearNotes } from '../lib/notes';
 import { 
   ChevronLeft, 
   ChevronRight, 
@@ -55,9 +57,16 @@ export function Sidebar({
   const overallProgress = totalQuestions > 0 ? (totalCompleted / totalQuestions) * 100 : 0;
 
   const handleClearProgress = () => {
-    if (window.confirm('Are you sure you want to clear all progress? This action cannot be undone.')) {
-      // Add logic to clear progress
-      console.log('Clearing progress...');
+    if (window.confirm('Are you sure you want to clear all progress and notes? This action cannot be undone.')) {
+      const clearedProgress = clearProgress();
+      const clearedNotes = clearNotes();
+      
+      if (clearedProgress && clearedNotes) {
+        // Force a page refresh to update all components
+        window.location.reload();
+      } else {
+        alert('Failed to clear data. Please try again.');
+      }
     }
   };
 
