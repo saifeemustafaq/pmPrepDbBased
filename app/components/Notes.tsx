@@ -97,6 +97,7 @@ export function Notes({ questionId }: NotesProps) {
     parseOptions: {
       preserveWhitespace: 'full',
     },
+    immediatelyRender: false,
   });
 
   // Load initial content

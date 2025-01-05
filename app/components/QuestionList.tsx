@@ -2,7 +2,7 @@
 
 import { SubCategory } from '../types';
 import { Progress } from './ui/Progress';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { QuestionView } from '../components/QuestionView';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -15,6 +15,7 @@ interface QuestionListProps {
   onToggleQuestion: (questionId: string) => void;
   categoryName: string;
   isSidebarCollapsed: boolean;
+  isRightSidebarExpanded?: boolean;
 }
 
 const CATEGORY_COLORS: { [key: string]: 'blue' | 'purple' | 'green' | 'orange' | 'pink' } = {
@@ -25,7 +26,7 @@ const CATEGORY_COLORS: { [key: string]: 'blue' | 'purple' | 'green' | 'orange' |
   'Estimation': 'pink'
 };
 
-export function QuestionList({ subCategories, onToggleQuestion, categoryName, isSidebarCollapsed }: QuestionListProps) {
+export function QuestionList({ subCategories, onToggleQuestion, categoryName, isSidebarCollapsed, isRightSidebarExpanded = false }: QuestionListProps) {
   const [selectedQuestion, setSelectedQuestion] = useState<string | null>(null);
   const color = CATEGORY_COLORS[categoryName];
   const { trackEvent } = useAnalytics();
@@ -83,16 +84,18 @@ export function QuestionList({ subCategories, onToggleQuestion, categoryName, is
   }, [selectedQuestion, subCategories, categoryName]);
 
   // Track UI interactions
-  const handleSidebarCollapseChange = () => {
+  const handleSidebarCollapseChange = useCallback(() => {
     analytics.trackUIInteraction('sidebar', isSidebarCollapsed ? 'expand' : 'collapse');
-  };
+  }, [isSidebarCollapsed]);
 
   useEffect(() => {
     handleSidebarCollapseChange();
-  }, [isSidebarCollapsed]);
+  }, [handleSidebarCollapseChange]);
 
   return (
-    <div className={`flex-1 p-8 overflow-y-auto transition-all duration-300 ${isSidebarCollapsed ? 'ml-20' : 'ml-64'}`}>
+    <div className={`flex-1 p-8 overflow-y-auto transition-all duration-300 
+      ${isSidebarCollapsed ? 'ml-20' : 'ml-64'}
+      ${isRightSidebarExpanded ? 'mr-80' : 'mr-10'}`}>
       <div className="max-w-4xl mx-auto space-y-6">
         {subCategories.map((subCategory) => {
           const progress = (subCategory.completedQuestions / subCategory.totalQuestions) * 100;

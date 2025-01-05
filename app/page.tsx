@@ -61,8 +61,10 @@ export default function Home() {
   const fetchQuestions = useCallback(async () => {
     try {
       const startTime = performance.now();
+      console.log('Fetching questions...');
       const response = await fetch('/api/questions');
       const data: ApiResponse<Question[]> = await response.json();
+      console.log('API Response:', data);
 
       if (!response.ok) {
         throw new Error(data.message || 'Failed to fetch questions');
@@ -73,8 +75,13 @@ export default function Home() {
       analytics.trackFeatureUsage('api', 'fetch_questions', endTime - startTime);
 
       const progress = getProgress();
+      // Use either data.questions or data.data, falling back to an empty array
+      const questions = data.questions || data.data || [];
+      console.log('Processed questions:', questions);
+
       const processedCategories = CATEGORIES.map(category => {
-        const categoryQuestions = data.questions.filter((q: Question) => q.category === category.name);
+        const categoryQuestions = questions.filter((q: Question) => q.category === category.name);
+        console.log(`Questions for category ${category.name}:`, categoryQuestions);
         const subCategories = category.subCategories.map(subName => {
           const questions = categoryQuestions
             .filter((q: Question) => q.subCategory === subName)
@@ -119,64 +126,59 @@ export default function Home() {
     fetchQuestions();
   }, [fetchQuestions]);
 
-  const handleToggleQuestion = async (questionId: string) => {
-    try {
-      const startTime = performance.now();
-      const response = await fetch(`/api/questions/${questionId}/toggle`, {
-        method: 'POST'
+  const handleToggleQuestion = (questionId: string) => {
+    // Find current question state
+    const currentQuestion = categories
+      .flatMap(cat => cat.subCategories)
+      .flatMap(sub => sub.questions)
+      .find(q => q._id === questionId);
+
+    if (!currentQuestion) return;
+
+    // Update the completion state
+    const newIsCompleted = !currentQuestion.isCompleted;
+    
+    // Update local storage
+    setQuestionProgress(questionId, newIsCompleted);
+    
+    // Update the UI state
+    const updatedCategories = categories.map(category => {
+      let categoryCompletedCount = 0;
+      const updatedSubCategories = category.subCategories.map(subCategory => {
+        const updatedQuestions = subCategory.questions.map(question => 
+          question._id === questionId 
+            ? { ...question, isCompleted: newIsCompleted }
+            : question
+        );
+        
+        const subCategoryCompletedCount = updatedQuestions.filter(q => q.isCompleted).length;
+        categoryCompletedCount += subCategoryCompletedCount;
+        
+        return {
+          ...subCategory,
+          questions: updatedQuestions,
+          completedQuestions: subCategoryCompletedCount,
+          totalQuestions: subCategory.questions.length
+        };
       });
-      const data = await response.json();
 
-      if (!response.ok) {
-        throw new Error(data.message || 'Failed to toggle question');
-      }
+      return {
+        ...category,
+        subCategories: updatedSubCategories,
+        completedQuestions: categoryCompletedCount,
+        totalQuestions: updatedSubCategories.reduce((acc, sub) => acc + sub.totalQuestions, 0)
+      };
+    });
 
-      // Track API performance
-      const endTime = performance.now();
-      analytics.trackFeatureUsage('api', 'toggle_question', endTime - startTime);
-
-      setCategories(prevCategories => {
-        const newCategories = prevCategories.map(category => ({
-          ...category,
-          subCategories: category.subCategories.map(subCategory => {
-            const updatedQuestions = subCategory.questions.map(question => {
-              if (question._id === questionId) {
-                const newIsCompleted = !question.isCompleted;
-                setQuestionProgress(questionId, newIsCompleted);
-                trackEvent(
-                  'question_completion',
-                  'Question Progress',
-                  `${question.category} - ${question.subCategory}`,
-                  newIsCompleted ? 1 : 0
-                );
-                return { ...question, isCompleted: newIsCompleted };
-              }
-              return question;
-            });
-
-            return {
-              ...subCategory,
-              questions: updatedQuestions,
-              completedQuestions: updatedQuestions.filter(q => q.isCompleted).length
-            };
-          }),
-        }));
-
-        return newCategories.map(category => ({
-          ...category,
-          completedQuestions: category.subCategories.reduce(
-            (acc, sub) => acc + sub.completedQuestions, 0
-          )
-        }));
-      });
-    } catch (error) {
-      console.error('Error toggling question:', error);
-      analytics.trackError(
-        'API Error',
-        error instanceof Error ? error.message : 'Unknown error toggling question',
-        'QuestionToggle'
-      );
-    }
+    setCategories(updatedCategories);
+    
+    // Track analytics
+    trackEvent(
+      'question_completion',
+      'Question Progress',
+      `${currentQuestion.category} - ${currentQuestion.subCategory}`,
+      newIsCompleted ? 1 : 0
+    );
   };
 
   if (loading) {
@@ -201,6 +203,7 @@ export default function Home() {
           onToggleQuestion={handleToggleQuestion}
           categoryName={selectedCategory}
           isSidebarCollapsed={isSidebarCollapsed}
+          isRightSidebarExpanded={isExpanded}
         />
       </ErrorBoundary>
 

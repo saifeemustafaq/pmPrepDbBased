@@ -2,13 +2,11 @@ import * as gtag from './gtag';
 
 // Session tracking
 let sessionStartTime: number;
-let lastActivityTime: number;
 const questionViewTimes: { [questionId: string]: number } = {};
 const categoryViewTimes: { [category: string]: number } = {};
 
 export const initSession = () => {
   sessionStartTime = Date.now();
-  lastActivityTime = Date.now();
   trackSessionStart();
 };
 

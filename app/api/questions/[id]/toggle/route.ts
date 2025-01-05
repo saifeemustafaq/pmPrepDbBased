@@ -1,51 +1,69 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { MongoClient, ObjectId } from 'mongodb';
+import clientPromise from '@/app/lib/mongodb';
+import { Document, ObjectId } from 'mongodb';
 
-const uri = process.env.MONGODB_URI;
-const client = new MongoClient(uri as string);
+interface QuestionDocument extends Document {
+  _id: string | ObjectId;
+  isCompleted?: boolean;
+}
 
 export async function POST(request: NextRequest) {
   try {
-    const id = request.nextUrl.pathname.split('/').pop();
-    if (!id) {
+    // Extract ID from the URL segments, getting the second-to-last segment
+    const segments = request.nextUrl.pathname.split('/');
+    const idString = segments[segments.length - 2];
+    
+    if (!idString) {
       return NextResponse.json(
-        { error: 'Question ID is required' },
+        { success: false, message: 'Question ID is required' },
         { status: 400 }
       );
     }
 
-    await client.connect();
-    const database = client.db('interview-prep');
-    const questions = database.collection('questions');
+    console.log('Toggle request for question ID:', idString);
     
-    const question = await questions.findOne({ _id: new ObjectId(id) });
+    const client = await clientPromise;
+    const db = client.db('interview-questions');
+    const questions = db.collection<QuestionDocument>('questions');
+    
+    // Convert string ID to ObjectId
+    const id = new ObjectId(idString);
+    console.log('Executing query:', { _id: id });
+    
+    const question = await questions.findOne({ _id: id });
+    console.log('Found question:', question);
+    
     if (!question) {
       return NextResponse.json(
-        { error: 'Question not found' },
+        { success: false, message: `Question not found with ID: ${idString}` },
         { status: 404 }
       );
     }
     
     const result = await questions.updateOne(
-      { _id: new ObjectId(id) },
+      { _id: id },
       { $set: { isCompleted: !question.isCompleted } }
     );
-    
-    if (result.modifiedCount === 1) {
-      return NextResponse.json({ success: true });
-    } else {
-      return NextResponse.json(
-        { error: 'Failed to update question' },
-        { status: 500 }
-      );
+
+    if (result.modifiedCount === 0) {
+      return NextResponse.json({ 
+        success: false,
+        message: 'Failed to update question',
+        isCompleted: question.isCompleted
+      }, { status: 500 });
     }
+
+    const newIsCompleted = !question.isCompleted;
+    return NextResponse.json({ 
+      success: true,
+      isCompleted: newIsCompleted,
+      message: 'Question updated successfully'
+    });
   } catch (error) {
     console.error('Database Error:', error);
-    return NextResponse.json(
-      { error: 'Failed to toggle question' },
-      { status: 500 }
-    );
-  } finally {
-    await client.close();
+    return NextResponse.json({ 
+      success: false,
+      message: error instanceof Error ? error.message : 'Failed to toggle question'
+    }, { status: 500 });
   }
 } 
