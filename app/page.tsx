@@ -49,6 +49,7 @@ export default function Home() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>('');
   const [loading, setLoading] = useState(true);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   useEffect(() => {
     fetchQuestions();
@@ -154,12 +155,15 @@ export default function Home() {
         categories={categories}
         selectedCategory={selectedCategory}
         onSelectCategory={setSelectedCategory}
+        isCollapsed={isSidebarCollapsed}
+        onCollapsedChange={setIsSidebarCollapsed}
       />
       {selectedCategoryData && (
         <QuestionList
           subCategories={selectedCategoryData.subCategories}
           onToggleQuestion={handleToggleQuestion}
           categoryName={selectedCategoryData.name}
+          isSidebarCollapsed={isSidebarCollapsed}
         />
       )}
     </div>

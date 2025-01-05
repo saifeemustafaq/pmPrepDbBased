@@ -12,6 +12,7 @@ interface QuestionListProps {
   subCategories: SubCategory[];
   onToggleQuestion: (questionId: string) => void;
   categoryName: string;
+  isSidebarCollapsed: boolean;
 }
 
 const CATEGORY_COLORS: { [key: string]: 'blue' | 'purple' | 'green' | 'orange' | 'pink' } = {
@@ -22,13 +23,13 @@ const CATEGORY_COLORS: { [key: string]: 'blue' | 'purple' | 'green' | 'orange' |
   'Estimation': 'pink'
 };
 
-export function QuestionList({ subCategories, onToggleQuestion, categoryName }: QuestionListProps) {
+export function QuestionList({ subCategories, onToggleQuestion, categoryName, isSidebarCollapsed }: QuestionListProps) {
   const [selectedQuestion, setSelectedQuestion] = useState<string | null>(null);
   const color = CATEGORY_COLORS[categoryName];
 
   return (
-    <div className="flex-1 p-6 overflow-auto bg-gray-50 font-poppins">
-      <div className="space-y-8 max-w-4xl mx-auto">
+    <div className={`flex-1 p-8 overflow-y-auto transition-all duration-300 ${isSidebarCollapsed ? 'ml-20' : 'ml-64'}`}>
+      <div className="max-w-4xl mx-auto space-y-6">
         {subCategories.map((subCategory) => {
           const progress = (subCategory.completedQuestions / subCategory.totalQuestions) * 100;
           
