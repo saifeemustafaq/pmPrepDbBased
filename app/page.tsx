@@ -1,10 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Category, Question, ApiResponse } from './types';
 import { Sidebar } from './components/Sidebar';
 import { QuestionList } from './components/QuestionList';
 import { getProgress, setQuestionProgress } from './lib/progress';
+import { useAnalytics } from './hooks/useAnalytics';
 
 const CATEGORIES = [
   {
@@ -46,16 +47,13 @@ const CATEGORIES = [
 ];
 
 export default function Home() {
+  const { trackEvent } = useAnalytics();
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
-  useEffect(() => {
-    fetchQuestions();
-  }, []);
-
-  const fetchQuestions = async () => {
+  const fetchQuestions = useCallback(async () => {
     try {
       const response = await fetch('/api/questions');
       const result: ApiResponse<Question[]> = await response.json();
@@ -104,7 +102,11 @@ export default function Home() {
       console.error('Error fetching questions:', error);
       setLoading(false);
     }
-  };
+  }, [selectedCategory]);
+
+  useEffect(() => {
+    fetchQuestions();
+  }, [fetchQuestions]);
 
   const handleToggleQuestion = async (questionId: string) => {
     try {
@@ -117,6 +119,13 @@ export default function Home() {
                 const newIsCompleted = !question.isCompleted;
                 // Update localStorage
                 setQuestionProgress(questionId, newIsCompleted);
+                // Track question completion
+                trackEvent(
+                  'question_completion',
+                  'Question Progress',
+                  `${question.category} - ${question.subCategory}`,
+                  newIsCompleted ? 1 : 0
+                );
                 return { ...question, isCompleted: newIsCompleted };
               }
               return question;

@@ -19,6 +19,7 @@ import {
   Send,
   MessageCircle
 } from 'lucide-react';
+import { useAnalytics } from '../hooks/useAnalytics';
 
 interface SidebarProps {
   categories: Category[];
@@ -77,6 +78,7 @@ export function Sidebar({
   onCollapsedChange 
 }: SidebarProps) {
   const [showMoreOptions, setShowMoreOptions] = useState(false);
+  const { trackEvent } = useAnalytics();
   const totalQuestions = categories.reduce((acc, cat) => acc + cat.totalQuestions, 0);
   const totalCompleted = categories.reduce((acc, cat) => acc + cat.completedQuestions, 0);
   const overallProgress = totalQuestions > 0 ? (totalCompleted / totalQuestions) * 100 : 0;
@@ -87,12 +89,35 @@ export function Sidebar({
       const clearedNotes = clearNotes();
       
       if (clearedProgress && clearedNotes) {
-        // Force a page refresh to update all components
+        trackEvent(
+          'clear_progress',
+          'User Action',
+          'Clear All Progress',
+          totalCompleted
+        );
         window.location.reload();
       } else {
         alert('Failed to clear data. Please try again.');
       }
     }
+  };
+
+  const handleCategorySelect = (category: string) => {
+    trackEvent(
+      'category_selection',
+      'Navigation',
+      category
+    );
+    onSelectCategory(category);
+  };
+
+  const handleSidebarToggle = (newIsCollapsed: boolean) => {
+    trackEvent(
+      'sidebar_toggle',
+      'UI Interaction',
+      newIsCollapsed ? 'collapse' : 'expand'
+    );
+    onCollapsedChange(newIsCollapsed);
   };
 
   return (
@@ -102,7 +127,7 @@ export function Sidebar({
         transition-all duration-300 ease-in-out z-10`}
     >
       <div 
-        onClick={() => onCollapsedChange(!isCollapsed)}
+        onClick={() => handleSidebarToggle(!isCollapsed)}
         className="absolute -right-6 top-16 w-12 h-12 bg-white rounded-full border border-gray-200 shadow-sm flex items-center justify-center cursor-pointer hover:bg-gray-50 transition-colors z-20"
         role="button"
         aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
@@ -183,7 +208,7 @@ export function Sidebar({
                       ? BG_COLOR_CLASSES[color]
                       : 'hover:bg-gray-100'
                   }`}
-                  onClick={() => onSelectCategory(category.name)}
+                  onClick={() => handleCategorySelect(category.name)}
                 >
                   <div className="flex items-center gap-3">
                     <div className={selectedCategory === category.name ? TEXT_COLOR_CLASSES[color] : 'text-gray-500'}>

@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 import { PencilIcon } from 'lucide-react';
 import { getNote, saveNote } from '../lib/notes';
 import { formatDistanceToNow } from 'date-fns';
+import { useAnalytics } from '../hooks/useAnalytics';
 
 interface NotesProps {
   questionId: string;
@@ -13,6 +14,7 @@ interface NotesProps {
 
 export function Notes({ questionId }: NotesProps) {
   const [lastEdited, setLastEdited] = useState<string | null>(null);
+  const { trackEvent } = useAnalytics();
 
   const editor = useEditor({
     extensions: [StarterKit],
@@ -25,14 +27,35 @@ export function Notes({ questionId }: NotesProps) {
       const content = editor.getHTML();
       saveNote(questionId, content);
       setLastEdited(new Date().toISOString());
+      
+      // Track note update
+      trackEvent(
+        'note_update',
+        'Notes',
+        questionId,
+        content.length
+      );
     },
   });
 
   useEffect(() => {
     const note = getNote(questionId);
-    if (note && editor) {
-      editor.commands.setContent(note.content);
-      setLastEdited(note.lastEdited);
+    if (note && editor && !editor.isDestroyed) {
+      // Only update if editor is empty or content is significantly different
+      const currentContent = editor.getHTML();
+      const isEmptyEditor = currentContent === '<p></p>' || currentContent === '';
+      if (isEmptyEditor || (note.content && note.content !== currentContent)) {
+        editor.commands.setContent(note.content || '');
+        setLastEdited(note.lastEdited);
+        
+        // Track note load
+        trackEvent(
+          'note_load',
+          'Notes',
+          questionId,
+          note.content ? note.content.length : 0
+        );
+      }
     }
   }, [questionId, editor]);
 

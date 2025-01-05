@@ -1,19 +1,24 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { MongoClient, ObjectId } from 'mongodb';
 
 const uri = process.env.MONGODB_URI;
 const client = new MongoClient(uri as string);
 
-export async function POST(
-  request: Request,
-  { params }: { params: { id: string } }
-) {
+export async function POST(request: NextRequest) {
   try {
+    const id = request.nextUrl.pathname.split('/').pop();
+    if (!id) {
+      return NextResponse.json(
+        { error: 'Question ID is required' },
+        { status: 400 }
+      );
+    }
+
     await client.connect();
     const database = client.db('interview-prep');
     const questions = database.collection('questions');
     
-    const question = await questions.findOne({ _id: new ObjectId(params.id) });
+    const question = await questions.findOne({ _id: new ObjectId(id) });
     if (!question) {
       return NextResponse.json(
         { error: 'Question not found' },
@@ -22,7 +27,7 @@ export async function POST(
     }
     
     const result = await questions.updateOne(
-      { _id: new ObjectId(params.id) },
+      { _id: new ObjectId(id) },
       { $set: { isCompleted: !question.isCompleted } }
     );
     
