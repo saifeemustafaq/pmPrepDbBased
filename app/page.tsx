@@ -6,6 +6,8 @@ import { Sidebar } from './components/Sidebar';
 import { QuestionList } from './components/QuestionList';
 import { getProgress, setQuestionProgress } from './lib/progress';
 import { useAnalytics } from './hooks/useAnalytics';
+import { useOverallNotes } from './hooks/useOverallNotes';
+import OverallNotes from './components/OverallNotes';
 
 const CATEGORIES = [
   {
@@ -48,6 +50,7 @@ const CATEGORIES = [
 
 export default function Home() {
   const { trackEvent } = useAnalytics();
+  const { isExpanded, toggleExpanded } = useOverallNotes();
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>('');
   const [loading, setLoading] = useState(true);
@@ -159,7 +162,7 @@ export default function Home() {
   const selectedCategoryData = categories.find(c => c.name === selectedCategory);
 
   return (
-    <div className="flex h-screen">
+    <div className="flex h-screen relative">
       <Sidebar
         categories={categories}
         selectedCategory={selectedCategory}
@@ -168,13 +171,19 @@ export default function Home() {
         onCollapsedChange={setIsSidebarCollapsed}
       />
       {selectedCategoryData && (
-        <QuestionList
-          subCategories={selectedCategoryData.subCategories}
-          onToggleQuestion={handleToggleQuestion}
-          categoryName={selectedCategoryData.name}
-          isSidebarCollapsed={isSidebarCollapsed}
-        />
+        <div className={`flex-1 ${isExpanded ? 'mr-80' : 'mr-10'} transition-all duration-300`}>
+          <QuestionList
+            subCategories={selectedCategoryData.subCategories}
+            onToggleQuestion={handleToggleQuestion}
+            categoryName={selectedCategoryData.name}
+            isSidebarCollapsed={isSidebarCollapsed}
+          />
+        </div>
       )}
+      <OverallNotes
+        isExpanded={isExpanded}
+        onToggle={toggleExpanded}
+      />
     </div>
   );
 }

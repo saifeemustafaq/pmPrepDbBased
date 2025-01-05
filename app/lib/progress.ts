@@ -44,6 +44,10 @@ export function clearProgress(): boolean {
   
   try {
     localStorage.removeItem(STORAGE_KEY);
+    // Clear notes-related data
+    localStorage.removeItem('overallNotes');
+    localStorage.removeItem('lastEdited');
+    localStorage.removeItem('overallNotesExpanded');
     return true;
   } catch (error) {
     console.error('Error clearing progress from localStorage:', error);
