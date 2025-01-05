@@ -11,7 +11,11 @@ import {
   Palette, 
   Target, 
   Rocket, 
-  Calculator 
+  Calculator,
+  MoreHorizontal,
+  Trash2,
+  Send,
+  MessageCircle
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -38,9 +42,17 @@ const CATEGORY_ICONS: { [key: string]: React.ReactNode } = {
 
 export function Sidebar({ categories, selectedCategory, onSelectCategory }: SidebarProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [showMoreOptions, setShowMoreOptions] = useState(false);
   const totalQuestions = categories.reduce((acc, cat) => acc + cat.totalQuestions, 0);
   const totalCompleted = categories.reduce((acc, cat) => acc + cat.completedQuestions, 0);
   const overallProgress = totalQuestions > 0 ? (totalCompleted / totalQuestions) * 100 : 0;
+
+  const handleClearProgress = () => {
+    if (window.confirm('Are you sure you want to clear all progress? This action cannot be undone.')) {
+      // Add logic to clear progress
+      console.log('Clearing progress...');
+    }
+  };
 
   return (
     <div 
@@ -74,9 +86,49 @@ export function Sidebar({ categories, selectedCategory, onSelectCategory }: Side
         </div>
 
         <div className="flex-1 overflow-y-auto px-4">
-          <div className={`mb-4 transition-all duration-300 ${isCollapsed ? 'opacity-0' : 'opacity-100'}`}>
-            <h2 className="text-xl font-bold whitespace-nowrap">Categories</h2>
+          <div className="relative mb-4">
+            <button
+              onClick={() => setShowMoreOptions(!showMoreOptions)}
+              className="flex items-center justify-between w-full px-4 py-3 bg-white rounded-lg border border-gray-200 shadow-sm hover:bg-gray-50 transition-all duration-200"
+            >
+              <div className="flex items-center gap-2">
+                <MoreHorizontal size={20} className="text-gray-600" />
+                {!isCollapsed && <span className="font-medium text-gray-700">More Options</span>}
+              </div>
+              {!isCollapsed && <ChevronRight size={16} className={`text-gray-400 transform transition-transform duration-200 ${showMoreOptions ? 'rotate-90' : ''}`} />}
+            </button>
+            
+            {showMoreOptions && !isCollapsed && (
+              <div className="absolute top-full left-0 w-full bg-white border border-gray-200 rounded-lg shadow-lg py-1 mt-2 z-50">
+                <button
+                  onClick={handleClearProgress}
+                  className="flex items-center gap-2 px-4 py-3 w-full hover:bg-gray-50 transition-colors"
+                >
+                  <Trash2 size={16} className="text-red-500" />
+                  <span className="text-gray-700">Clear Progress</span>
+                </button>
+                <a
+                  href="https://forms.gle/PhLhrwWxjffaN7JM6"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 px-4 py-3 w-full hover:bg-gray-50 transition-colors"
+                >
+                  <Send size={16} className="text-blue-500" />
+                  <span className="text-gray-700">Submit a Question</span>
+                </a>
+                <a
+                  href="https://forms.gle/Avnvb14BJ15HQwWZ7"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 px-4 py-3 w-full hover:bg-gray-50 transition-colors"
+                >
+                  <MessageCircle size={16} className="text-green-500" />
+                  <span className="text-gray-700">Feedback</span>
+                </a>
+              </div>
+            )}
           </div>
+
           <div className="space-y-3">
             {categories.map((category) => {
               const progress = (category.completedQuestions / category.totalQuestions) * 100;
