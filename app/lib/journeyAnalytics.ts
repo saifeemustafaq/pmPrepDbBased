@@ -7,9 +7,8 @@ export const trackCategoryTime = (category: string, timeSpent: number) => {
     category: 'User Journey',
     label: category,
     value: Math.floor(timeSpent),
-    // Additional GA parameters for better analysis
-    metric1: timeSpent,
-    dimension1: category,
+    view_duration_seconds: timeSpent,
+    question_category: category,
     non_interaction: false
   });
 };
@@ -26,17 +25,15 @@ export const trackLearningPath = (
     category: 'User Journey',
     label: `${category}/${questionId}`,
     value: completed ? 1 : 0,
-    // Additional GA parameters
-    metric1: timeSpent,
-    metric2: completed ? 1 : 0,
-    dimension1: category,
-    dimension2: questionId,
-    dimension3: 'completion_status_' + (completed ? 'complete' : 'incomplete'),
+    view_duration_seconds: timeSpent,
+    completion_status: completed,
+    question_category: category,
+    question_id: questionId,
     non_interaction: false
   });
 };
 
-// Study session patterns
+// Study session tracking
 export const trackStudySession = (
   sessionDuration: number,
   questionsAttempted: number,
@@ -48,18 +45,15 @@ export const trackStudySession = (
     category: 'User Journey',
     label: `Completed: ${questionsCompleted}/${questionsAttempted}`,
     value: Math.floor(sessionDuration),
-    // Additional GA parameters
-    metric1: sessionDuration,
-    metric2: questionsAttempted,
-    metric3: questionsCompleted,
-    metric4: questionsCompleted / questionsAttempted, // completion rate
-    dimension1: categories.join(','),
-    dimension2: 'session_productivity_' + (questionsCompleted / questionsAttempted > 0.5 ? 'high' : 'low'),
+    session_duration: sessionDuration,
+    interaction_count: questionsAttempted,
+    completion_status: questionsCompleted > 0,
+    question_category: categories.join(','),
     non_interaction: false
   });
 };
 
-// Question difficulty correlation
+// Question difficulty tracking
 export const trackQuestionDifficulty = (
   questionId: string,
   timeSpent: number,
@@ -71,18 +65,15 @@ export const trackQuestionDifficulty = (
     category: 'User Journey',
     label: `Q${questionId}/Attempts:${attempts}`,
     value: Math.floor(timeSpent),
-    // Additional GA parameters
-    metric1: timeSpent,
-    metric2: attempts,
-    metric3: completed ? 1 : 0,
-    dimension1: questionId,
-    dimension2: 'difficulty_' + (timeSpent > 300 ? 'hard' : timeSpent > 120 ? 'medium' : 'easy'),
-    dimension3: 'attempts_' + (attempts > 3 ? 'many' : attempts > 1 ? 'few' : 'single'),
+    view_duration_seconds: timeSpent,
+    interaction_count: attempts,
+    completion_status: completed,
+    question_id: questionId,
     non_interaction: false
   });
 };
 
-// Track question completion rate
+// Track completion rate
 export const trackCompletionRate = (
   category: string,
   subCategory: string,
@@ -94,13 +85,9 @@ export const trackCompletionRate = (
     category: 'User Journey',
     label: `${category}/${subCategory}`,
     value: Math.floor((completedCount / totalCount) * 100),
-    // Additional GA parameters
-    metric1: completedCount,
-    metric2: totalCount,
-    metric3: (completedCount / totalCount) * 100,
-    dimension1: category,
-    dimension2: subCategory,
-    dimension3: 'progress_' + (completedCount / totalCount > 0.7 ? 'high' : completedCount / totalCount > 0.3 ? 'medium' : 'low'),
+    interaction_count: completedCount,
+    question_category: category,
+    completion_status: (completedCount / totalCount) > 0.5,
     non_interaction: true
   });
 }; 

@@ -5,14 +5,20 @@ type GTagEvent = {
   category: string;
   label: string;
   value?: number;
-  // Additional GA parameters
-  metric1?: number;
-  metric2?: number;
-  metric3?: number;
-  metric4?: number;
-  dimension1?: string;
-  dimension2?: string;
-  dimension3?: string;
+  // Custom parameters for better analytics tracking
+  question_category?: string;
+  question_id?: string;
+  view_duration_seconds?: number;
+  interaction_count?: number;
+  notes_type?: string;
+  completion_status?: boolean;
+  user_type?: string;
+  session_duration?: number;
+  feature_name?: string;
+  navigation_section?: string;
+  device_info?: string;
+  error_type?: string;
+  content_length?: number;
   non_interaction?: boolean;
 };
 

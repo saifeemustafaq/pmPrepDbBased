@@ -15,7 +15,8 @@ export const trackSessionStart = () => {
     action: 'session_start',
     category: 'Session',
     label: new Date().toISOString(),
-    value: 0
+    value: 0,
+    user_type: 'new_session'
   });
 };
 
@@ -25,7 +26,8 @@ export const trackSessionEnd = () => {
     action: 'session_end',
     category: 'Session',
     label: new Date().toISOString(),
-    value: sessionDuration
+    value: sessionDuration,
+    session_duration: sessionDuration
   });
 };
 
@@ -41,7 +43,10 @@ export const endQuestionView = (questionId: string, questionTitle: string, categ
       action: 'question_view_duration',
       category: 'Question Interaction',
       label: `${category} - ${questionTitle}`,
-      value: viewDuration
+      value: viewDuration,
+      question_id: questionId,
+      question_category: category,
+      view_duration_seconds: viewDuration
     });
     delete questionViewTimes[questionId];
   }
@@ -59,7 +64,9 @@ export const endCategoryView = (category: string) => {
       action: 'category_view_duration',
       category: 'Navigation',
       label: category,
-      value: viewDuration
+      value: viewDuration,
+      navigation_section: category,
+      view_duration_seconds: viewDuration
     });
     delete categoryViewTimes[category];
   }
@@ -74,7 +81,10 @@ export const trackQuestionRevisit = (questionId: string, questionTitle: string, 
     action: 'question_revisit',
     category: 'Question Interaction',
     label: `${category} - ${questionTitle}`,
-    value: questionVisits[questionId]
+    value: questionVisits[questionId],
+    question_id: questionId,
+    question_category: category,
+    interaction_count: questionVisits[questionId]
   });
 };
 
@@ -84,7 +94,8 @@ export const trackError = (errorType: string, errorMessage: string, componentNam
     action: 'error',
     category: 'Error',
     label: `${errorType}${componentName ? ` - ${componentName}` : ''}: ${errorMessage}`,
-    value: 1
+    value: 1,
+    error_type: errorType
   });
 };
 
@@ -94,7 +105,8 @@ export const trackPageLoad = (duration: number) => {
     action: 'page_load',
     category: 'Performance',
     label: window.location.pathname,
-    value: Math.floor(duration)
+    value: Math.floor(duration),
+    view_duration_seconds: Math.floor(duration)
   });
 };
 
@@ -114,7 +126,8 @@ export const trackDeviceInfo = () => {
     action: 'device_info',
     category: 'User Environment',
     label: JSON.stringify(deviceInfo),
-    value: window.screen.width * window.screen.height
+    value: window.screen.width * window.screen.height,
+    device_info: JSON.stringify(deviceInfo)
   });
 };
 
@@ -124,7 +137,8 @@ export const trackFeatureUsage = (feature: string, action: string, value?: numbe
     action: 'feature_usage',
     category: 'Feature',
     label: `${feature} - ${action}`,
-    value: value || 1
+    value: value || 1,
+    feature_name: feature
   });
 };
 
@@ -142,14 +156,11 @@ export const endNoteEdit = (questionId: string | 'overall', contentLength: numbe
       action: 'note_edit_duration',
       category: 'Notes',
       label: questionId === 'overall' ? 'Overall Notes' : `Question ${questionId}`,
-      value: editDuration
-    });
-
-    gtag.event({
-      action: 'note_length',
-      category: 'Notes',
-      label: questionId === 'overall' ? 'Overall Notes' : `Question ${questionId}`,
-      value: contentLength
+      value: editDuration,
+      notes_type: questionId === 'overall' ? 'overall' : 'question',
+      question_id: questionId === 'overall' ? undefined : questionId,
+      view_duration_seconds: editDuration,
+      content_length: contentLength
     });
 
     noteEditStartTime = null;
@@ -162,6 +173,8 @@ export const trackUIInteraction = (component: string, action: string, value?: nu
     action: 'ui_interaction',
     category: 'UI',
     label: `${component} - ${action}`,
-    value: value || 1
+    value: value || 1,
+    navigation_section: component,
+    interaction_count: value || 1
   });
 }; 
