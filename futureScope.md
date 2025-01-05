@@ -1,8 +1,12 @@
 # My Priority
 
+1. Overall notes feature
 
 
-
+Saif Priority
+1. Mobile version
+2. Dark Mode
+3. search functionality
 
 ### 1. Feature and Functionality Improvements:
 
