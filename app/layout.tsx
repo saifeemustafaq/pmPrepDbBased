@@ -1,8 +1,12 @@
+'use client';
+
 import type { Metadata } from "next";
 import { Poppins } from "next/font/google";
 import "./globals.css";
 import Script from 'next/script';
 import { GA_TRACKING_ID } from './lib/gtag';
+import { useEffect } from 'react';
+import * as analytics from './lib/analytics';
 
 const poppins = Poppins({
   weight: ['300', '400', '500', '600', '700'],
@@ -21,6 +25,30 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  useEffect(() => {
+    // Initialize session tracking
+    analytics.initSession();
+    
+    // Track device info
+    analytics.trackDeviceInfo();
+
+    // Track page load performance
+    const pageLoadTime = window.performance.timing.loadEventEnd - window.performance.timing.navigationStart;
+    analytics.trackPageLoad(pageLoadTime);
+
+    // Handle session end
+    const handleBeforeUnload = () => {
+      analytics.trackSessionEnd();
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      analytics.trackSessionEnd();
+    };
+  }, []);
+
   return (
     <html lang="en">
       <head>

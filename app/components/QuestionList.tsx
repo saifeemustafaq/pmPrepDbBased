@@ -2,11 +2,13 @@
 
 import { SubCategory } from '../types';
 import { Progress } from './ui/Progress';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { QuestionView } from '../components/QuestionView';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { ChevronDown } from 'lucide-react';
+import { useAnalytics } from '../hooks/useAnalytics';
+import * as analytics from '../lib/analytics';
 
 interface QuestionListProps {
   subCategories: SubCategory[];
@@ -26,6 +28,68 @@ const CATEGORY_COLORS: { [key: string]: 'blue' | 'purple' | 'green' | 'orange' |
 export function QuestionList({ subCategories, onToggleQuestion, categoryName, isSidebarCollapsed }: QuestionListProps) {
   const [selectedQuestion, setSelectedQuestion] = useState<string | null>(null);
   const color = CATEGORY_COLORS[categoryName];
+  const { trackEvent } = useAnalytics();
+
+  // Track category view duration
+  useEffect(() => {
+    analytics.startCategoryView(categoryName);
+    return () => {
+      analytics.endCategoryView(categoryName);
+    };
+  }, [categoryName]);
+
+  const handleQuestionExpand = (question: { _id: string, question: string }) => {
+    const newSelectedId = selectedQuestion === question._id ? null : question._id;
+    
+    // If there was a previously selected question, end its view tracking
+    if (selectedQuestion) {
+      const prevQuestion = subCategories
+        .flatMap(sub => sub.questions)
+        .find(q => q._id === selectedQuestion);
+      if (prevQuestion) {
+        analytics.endQuestionView(prevQuestion._id, prevQuestion.question, categoryName);
+      }
+    }
+
+    setSelectedQuestion(newSelectedId);
+    
+    if (newSelectedId) {
+      // Track question view start
+      analytics.startQuestionView(question._id);
+      // Track question revisit
+      analytics.trackQuestionRevisit(question._id, question.question, categoryName);
+      // Track regular view event
+      trackEvent(
+        'view',
+        'question',
+        `${categoryName} - ${question.question.substring(0, 50)}...`,
+        1
+      );
+    }
+  };
+
+  // Cleanup question view tracking on unmount
+  useEffect(() => {
+    return () => {
+      if (selectedQuestion) {
+        const question = subCategories
+          .flatMap(sub => sub.questions)
+          .find(q => q._id === selectedQuestion);
+        if (question) {
+          analytics.endQuestionView(question._id, question.question, categoryName);
+        }
+      }
+    };
+  }, [selectedQuestion, subCategories, categoryName]);
+
+  // Track UI interactions
+  const handleSidebarCollapseChange = () => {
+    analytics.trackUIInteraction('sidebar', isSidebarCollapsed ? 'expand' : 'collapse');
+  };
+
+  useEffect(() => {
+    handleSidebarCollapseChange();
+  }, [isSidebarCollapsed]);
 
   return (
     <div className={`flex-1 p-8 overflow-y-auto transition-all duration-300 ${isSidebarCollapsed ? 'ml-20' : 'ml-64'}`}>
@@ -82,9 +146,7 @@ export function QuestionList({ subCategories, onToggleQuestion, categoryName, is
                       </div>
                       <div className="flex-1 min-w-0">
                         <button
-                          onClick={() => setSelectedQuestion(
-                            selectedQuestion === question._id ? null : question._id
-                          )}
+                          onClick={() => handleQuestionExpand(question)}
                           className="flex justify-between w-full group text-left"
                         >
                           <div className="flex min-w-0">

@@ -8,6 +8,8 @@ import { getProgress, setQuestionProgress } from './lib/progress';
 import { useAnalytics } from './hooks/useAnalytics';
 import { useOverallNotes } from './hooks/useOverallNotes';
 import OverallNotes from './components/OverallNotes';
+import { ErrorBoundary } from './components/ErrorBoundary';
+import * as analytics from './lib/analytics';
 
 const CATEGORIES = [
   {
@@ -58,41 +60,42 @@ export default function Home() {
 
   const fetchQuestions = useCallback(async () => {
     try {
+      const startTime = performance.now();
       const response = await fetch('/api/questions');
-      const result: ApiResponse<Question[]> = await response.json();
-      
-      if (!result.success || !result.data) {
-        throw new Error(result.error || 'Failed to fetch questions');
+      const data: ApiResponse<Question[]> = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to fetch questions');
       }
 
-      const questions = result.data;
-      const savedProgress = getProgress();
-      
-      // Process questions into categories
-      const processedCategories = CATEGORIES.map(cat => {
-        const categoryQuestions = questions.filter(q => q.category === cat.name);
-        const subCategories = cat.subCategories.map(subCat => {
-          const subCategoryQuestions = categoryQuestions.filter(q => q.subCategory === subCat);
-          const completedCount = subCategoryQuestions.filter(q => savedProgress[q._id]).length;
-          
-          return {
-            name: subCat,
-            questions: subCategoryQuestions.map(q => ({
+      // Track API performance
+      const endTime = performance.now();
+      analytics.trackFeatureUsage('api', 'fetch_questions', endTime - startTime);
+
+      const progress = getProgress();
+      const processedCategories = CATEGORIES.map(category => {
+        const categoryQuestions = data.questions.filter((q: Question) => q.category === category.name);
+        const subCategories = category.subCategories.map(subName => {
+          const questions = categoryQuestions
+            .filter((q: Question) => q.subCategory === subName)
+            .map((q: Question) => ({
               ...q,
-              isCompleted: savedProgress[q._id] || false
-            })),
-            totalQuestions: subCategoryQuestions.length,
-            completedQuestions: completedCount
+              isCompleted: progress[q._id] || false
+            }));
+
+          return {
+            name: subName,
+            questions,
+            completedQuestions: questions.filter((q: Question) => q.isCompleted).length,
+            totalQuestions: questions.length
           };
         });
 
-        const totalCompleted = subCategories.reduce((acc, sub) => acc + sub.completedQuestions, 0);
-
         return {
-          name: cat.name,
+          name: category.name,
           subCategories,
-          totalQuestions: categoryQuestions.length,
-          completedQuestions: totalCompleted
+          completedQuestions: subCategories.reduce((acc, sub) => acc + sub.completedQuestions, 0),
+          totalQuestions: subCategories.reduce((acc, sub) => acc + sub.totalQuestions, 0)
         };
       });
 
@@ -103,6 +106,11 @@ export default function Home() {
       setLoading(false);
     } catch (error) {
       console.error('Error fetching questions:', error);
+      analytics.trackError(
+        'API Error',
+        error instanceof Error ? error.message : 'Unknown error fetching questions',
+        'QuestionsFetch'
+      );
       setLoading(false);
     }
   }, [selectedCategory]);
@@ -113,6 +121,20 @@ export default function Home() {
 
   const handleToggleQuestion = async (questionId: string) => {
     try {
+      const startTime = performance.now();
+      const response = await fetch(`/api/questions/${questionId}/toggle`, {
+        method: 'POST'
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to toggle question');
+      }
+
+      // Track API performance
+      const endTime = performance.now();
+      analytics.trackFeatureUsage('api', 'toggle_question', endTime - startTime);
+
       setCategories(prevCategories => {
         const newCategories = prevCategories.map(category => ({
           ...category,
@@ -120,9 +142,7 @@ export default function Home() {
             const updatedQuestions = subCategory.questions.map(question => {
               if (question._id === questionId) {
                 const newIsCompleted = !question.isCompleted;
-                // Update localStorage
                 setQuestionProgress(questionId, newIsCompleted);
-                // Track question completion
                 trackEvent(
                   'question_completion',
                   'Question Progress',
@@ -142,7 +162,6 @@ export default function Home() {
           }),
         }));
 
-        // Update category completion counts
         return newCategories.map(category => ({
           ...category,
           completedQuestions: category.subCategories.reduce(
@@ -152,38 +171,45 @@ export default function Home() {
       });
     } catch (error) {
       console.error('Error toggling question:', error);
+      analytics.trackError(
+        'API Error',
+        error instanceof Error ? error.message : 'Unknown error toggling question',
+        'QuestionToggle'
+      );
     }
   };
 
   if (loading) {
-    return <div className="flex items-center justify-center h-screen">Loading...</div>;
+    return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
   }
 
-  const selectedCategoryData = categories.find(c => c.name === selectedCategory);
-
   return (
-    <div className="flex h-screen relative">
-      <Sidebar
-        categories={categories}
-        selectedCategory={selectedCategory}
-        onSelectCategory={setSelectedCategory}
-        isCollapsed={isSidebarCollapsed}
-        onCollapsedChange={setIsSidebarCollapsed}
-      />
-      {selectedCategoryData && (
-        <div className={`flex-1 ${isExpanded ? 'mr-80' : 'mr-10'} transition-all duration-300`}>
-          <QuestionList
-            subCategories={selectedCategoryData.subCategories}
-            onToggleQuestion={handleToggleQuestion}
-            categoryName={selectedCategoryData.name}
-            isSidebarCollapsed={isSidebarCollapsed}
-          />
-        </div>
-      )}
-      <OverallNotes
-        isExpanded={isExpanded}
-        onToggle={toggleExpanded}
-      />
+    <div className="flex min-h-screen bg-gray-50">
+      <ErrorBoundary componentName="Sidebar">
+        <Sidebar
+          categories={categories}
+          selectedCategory={selectedCategory}
+          onSelectCategory={setSelectedCategory}
+          isCollapsed={isSidebarCollapsed}
+          onCollapsedChange={setIsSidebarCollapsed}
+        />
+      </ErrorBoundary>
+
+      <ErrorBoundary componentName="QuestionList">
+        <QuestionList
+          subCategories={categories.find(c => c.name === selectedCategory)?.subCategories || []}
+          onToggleQuestion={handleToggleQuestion}
+          categoryName={selectedCategory}
+          isSidebarCollapsed={isSidebarCollapsed}
+        />
+      </ErrorBoundary>
+
+      <ErrorBoundary componentName="OverallNotes">
+        <OverallNotes
+          isExpanded={isExpanded}
+          onToggle={toggleExpanded}
+        />
+      </ErrorBoundary>
     </div>
   );
 }
