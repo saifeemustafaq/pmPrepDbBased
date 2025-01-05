@@ -29,9 +29,9 @@ interface SidebarProps {
   onCollapsedChange: (isCollapsed: boolean) => void;
 }
 
-const CATEGORY_COLORS: { [key: string]: 'blue' | 'purple' | 'green' | 'orange' | 'pink' } = {
+const CATEGORY_COLORS: { [key: string]: 'yellow' | 'purple' | 'green' | 'orange' | 'pink' } = {
   'Behavioral': 'purple',
-  'Product Design': 'blue',
+  'Product Design': 'yellow',
   'Strategy': 'green',
   'Execution': 'orange',
   'Estimation': 'pink'
@@ -39,7 +39,7 @@ const CATEGORY_COLORS: { [key: string]: 'blue' | 'purple' | 'green' | 'orange' |
 
 // Add color class mappings
 const TEXT_COLOR_CLASSES = {
-  blue: 'text-blue-600',
+  yellow: 'text-yellow-600',
   purple: 'text-purple-600',
   green: 'text-green-600',
   orange: 'text-orange-600',
@@ -47,7 +47,7 @@ const TEXT_COLOR_CLASSES = {
 };
 
 const BG_COLOR_CLASSES = {
-  blue: 'bg-blue-50 border-blue-100',
+  yellow: 'bg-yellow-50 border-yellow-100',
   purple: 'bg-purple-50 border-purple-100',
   green: 'bg-green-50 border-green-100',
   orange: 'bg-orange-50 border-orange-100',
@@ -55,7 +55,7 @@ const BG_COLOR_CLASSES = {
 };
 
 const TEXT_DARK_COLOR_CLASSES = {
-  blue: 'text-blue-900',
+  yellow: 'text-yellow-900',
   purple: 'text-purple-900',
   green: 'text-green-900',
   orange: 'text-orange-900',
@@ -233,7 +233,7 @@ export function Sidebar({
                         <Progress 
                           value={progress} 
                           size="sm"
-                          color={selectedCategory === category.name ? color : 'blue'}
+                          color={color}
                         />
                       </div>
                     )}

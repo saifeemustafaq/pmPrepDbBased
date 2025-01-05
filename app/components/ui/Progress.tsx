@@ -2,7 +2,7 @@ interface ProgressProps {
   value: number;
   size?: 'sm' | 'md' | 'lg';
   showValue?: boolean;
-  color?: 'blue' | 'purple' | 'green' | 'orange' | 'pink';
+  color?: 'blue' | 'yellow' | 'purple' | 'green' | 'orange' | 'pink';
 }
 
 export function Progress({ 
@@ -22,6 +22,7 @@ export function Progress({
 
   const colorClasses = {
     blue: 'bg-blue-500',
+    yellow: 'bg-yellow-500',
     purple: 'bg-purple-500',
     green: 'bg-emerald-500',
     orange: 'bg-orange-500',
