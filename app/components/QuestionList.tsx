@@ -9,6 +9,7 @@ import remarkGfm from 'remark-gfm';
 import { ChevronDown } from 'lucide-react';
 import { useAnalytics } from '../hooks/useAnalytics';
 import * as analytics from '../lib/analytics';
+import * as journeyAnalytics from '../lib/journeyAnalytics';
 
 interface QuestionListProps {
   subCategories: SubCategory[];
@@ -28,38 +29,66 @@ const CATEGORY_COLORS: { [key: string]: 'blue' | 'purple' | 'green' | 'orange' |
 
 export function QuestionList({ subCategories, onToggleQuestion, categoryName, isSidebarCollapsed, isRightSidebarExpanded = false }: QuestionListProps) {
   const [selectedQuestion, setSelectedQuestion] = useState<string | null>(null);
+  const [questionStartTime, setQuestionStartTime] = useState<number | null>(null);
+  const [questionAttempts, setQuestionAttempts] = useState<Record<string, number>>({});
   const color = CATEGORY_COLORS[categoryName];
   const { trackEvent } = useAnalytics();
 
-  // Track category view duration
+  // Track category view duration with enhanced analytics
   useEffect(() => {
+    const startTime = Date.now();
     analytics.startCategoryView(categoryName);
+    
     return () => {
+      const timeSpent = Math.floor((Date.now() - startTime) / 1000);
       analytics.endCategoryView(categoryName);
+      journeyAnalytics.trackCategoryTime(categoryName, timeSpent);
     };
   }, [categoryName]);
 
   const handleQuestionExpand = (question: { _id: string, question: string }) => {
     const newSelectedId = selectedQuestion === question._id ? null : question._id;
+    const currentTime = Date.now();
     
-    // If there was a previously selected question, end its view tracking
-    if (selectedQuestion) {
+    // Track previous question metrics if exists
+    if (selectedQuestion && questionStartTime) {
+      const timeSpent = Math.floor((currentTime - questionStartTime) / 1000);
       const prevQuestion = subCategories
         .flatMap(sub => sub.questions)
         .find(q => q._id === selectedQuestion);
+      
       if (prevQuestion) {
         analytics.endQuestionView(prevQuestion._id, prevQuestion.question, categoryName);
+        
+        // Track learning path and difficulty
+        const attempts = questionAttempts[prevQuestion._id] || 0;
+        journeyAnalytics.trackLearningPath(
+          prevQuestion._id,
+          categoryName,
+          timeSpent,
+          prevQuestion.isCompleted || false
+        );
+        journeyAnalytics.trackQuestionDifficulty(
+          prevQuestion._id,
+          timeSpent,
+          attempts,
+          prevQuestion.isCompleted || false
+        );
       }
     }
 
     setSelectedQuestion(newSelectedId);
+    setQuestionStartTime(newSelectedId ? currentTime : null);
     
     if (newSelectedId) {
-      // Track question view start
+      // Update attempts counter
+      setQuestionAttempts(prev => ({
+        ...prev,
+        [question._id]: (prev[question._id] || 0) + 1
+      }));
+      
       analytics.startQuestionView(question._id);
-      // Track question revisit
       analytics.trackQuestionRevisit(question._id, question.question, categoryName);
-      // Track regular view event
       trackEvent(
         'view',
         'question',
@@ -69,19 +98,59 @@ export function QuestionList({ subCategories, onToggleQuestion, categoryName, is
     }
   };
 
-  // Cleanup question view tracking on unmount
+  // Track study session on component mount/unmount
   useEffect(() => {
-    return () => {
-      if (selectedQuestion) {
-        const question = subCategories
-          .flatMap(sub => sub.questions)
-          .find(q => q._id === selectedQuestion);
-        if (question) {
-          analytics.endQuestionView(question._id, question.question, categoryName);
+    const sessionStart = Date.now();
+    const questionsAttempted = new Set<string>();
+    const questionsCompleted = new Set<string>();
+    
+    // Initialize with current progress
+    subCategories.forEach(sub => {
+      sub.questions.forEach(q => {
+        if (q.isCompleted) {
+          questionsCompleted.add(q._id);
         }
-      }
+      });
+    });
+
+    return () => {
+      const sessionDuration = Math.floor((Date.now() - sessionStart) / 1000);
+      journeyAnalytics.trackStudySession(
+        sessionDuration,
+        questionsAttempted.size,
+        questionsCompleted.size,
+        [categoryName]
+      );
     };
-  }, [selectedQuestion, subCategories, categoryName]);
+  }, [subCategories, categoryName]);
+
+  // Track question completion
+  const handleToggleQuestion = useCallback((questionId: string) => {
+    const question = subCategories
+      .flatMap(sub => sub.questions)
+      .find(q => q._id === questionId);
+    
+    if (question) {
+      const timeSpent = questionStartTime ? Math.floor((Date.now() - questionStartTime) / 1000) : 0;
+      const attempts = questionAttempts[questionId] || 1;
+      
+      journeyAnalytics.trackLearningPath(
+        questionId,
+        categoryName,
+        timeSpent,
+        !question.isCompleted // Toggle state
+      );
+      
+      journeyAnalytics.trackQuestionDifficulty(
+        questionId,
+        timeSpent,
+        attempts,
+        !question.isCompleted // Toggle state
+      );
+    }
+    
+    onToggleQuestion(questionId);
+  }, [onToggleQuestion, categoryName, questionStartTime, questionAttempts, subCategories]);
 
   // Track UI interactions
   const handleSidebarCollapseChange = useCallback(() => {
@@ -136,7 +205,7 @@ export function QuestionList({ subCategories, onToggleQuestion, categoryName, is
                         <input
                           type="checkbox"
                           checked={question.isCompleted || false}
-                          onChange={() => onToggleQuestion(question._id)}
+                          onChange={() => handleToggleQuestion(question._id)}
                           className={`h-4 w-4 rounded border-gray-300 focus:ring-${color}-500 mt-1 transition-colors ${
                             question.isCompleted 
                               ? `text-${color}-600 focus:ring-${color}-500` 

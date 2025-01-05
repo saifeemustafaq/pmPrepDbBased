@@ -5,6 +5,15 @@ type GTagEvent = {
   category: string;
   label: string;
   value?: number;
+  // Additional GA parameters
+  metric1?: number;
+  metric2?: number;
+  metric3?: number;
+  metric4?: number;
+  dimension1?: string;
+  dimension2?: string;
+  dimension3?: string;
+  non_interaction?: boolean;
 };
 
 // https://developers.google.com/analytics/devguides/collection/gtagjs/pages
@@ -15,10 +24,11 @@ export const pageview = (url: string) => {
 };
 
 // https://developers.google.com/analytics/devguides/collection/gtagjs/events
-export const event = ({ action, category, label, value }: GTagEvent) => {
+export const event = ({ action, category, label, value, ...customParams }: GTagEvent) => {
   window.gtag('event', action, {
     event_category: category,
     event_label: label,
     value,
+    ...customParams
   });
 }; 
