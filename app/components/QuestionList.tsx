@@ -106,8 +106,8 @@ export function QuestionList({ subCategories, onToggleQuestion, categoryName, is
                         </button>
                         
                         <div 
-                          className={`overflow-hidden transition-all duration-200 ease-in-out ${
-                            selectedQuestion === question._id ? 'max-h-[2000px] opacity-100 mt-4' : 'max-h-0 opacity-0'
+                          className={`overflow-hidden transition-all duration-300 ease-in-out ${
+                            selectedQuestion === question._id ? 'opacity-100 mt-4' : 'opacity-0 h-0'
                           }`}
                         >
                           {selectedQuestion === question._id && (
