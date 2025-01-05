@@ -36,6 +36,31 @@ const CATEGORY_COLORS: { [key: string]: 'blue' | 'purple' | 'green' | 'orange' |
   'Estimation': 'pink'
 };
 
+// Add color class mappings
+const TEXT_COLOR_CLASSES = {
+  blue: 'text-blue-600',
+  purple: 'text-purple-600',
+  green: 'text-green-600',
+  orange: 'text-orange-600',
+  pink: 'text-pink-600'
+};
+
+const BG_COLOR_CLASSES = {
+  blue: 'bg-blue-50 border-blue-100',
+  purple: 'bg-purple-50 border-purple-100',
+  green: 'bg-green-50 border-green-100',
+  orange: 'bg-orange-50 border-orange-100',
+  pink: 'bg-pink-50 border-pink-100'
+};
+
+const TEXT_DARK_COLOR_CLASSES = {
+  blue: 'text-blue-900',
+  purple: 'text-purple-900',
+  green: 'text-green-900',
+  orange: 'text-orange-900',
+  pink: 'text-pink-900'
+};
+
 const CATEGORY_ICONS: { [key: string]: React.ReactNode } = {
   'Behavioral': <MessageSquare size={20} />,
   'Product Design': <Palette size={20} />,
@@ -155,27 +180,35 @@ export function Sidebar({
                   key={category.name}
                   className={`p-3 rounded-lg cursor-pointer transition-all duration-200 ${
                     selectedCategory === category.name
-                      ? `bg-${color}-50 border border-${color}-100 shadow-sm`
+                      ? BG_COLOR_CLASSES[color]
                       : 'hover:bg-gray-100'
                   }`}
                   onClick={() => onSelectCategory(category.name)}
                 >
                   <div className="flex items-center gap-3">
-                    <div className={`text-${color}-600`}>
+                    <div className={selectedCategory === category.name ? TEXT_COLOR_CLASSES[color] : 'text-gray-500'}>
                       {CATEGORY_ICONS[category.name]}
                     </div>
                     {!isCollapsed && (
                       <div className="flex-1">
                         <div className="flex justify-between items-center mb-2">
-                          <h3 className={`font-medium text-${color}-900 whitespace-nowrap`}>{category.name}</h3>
-                          <span className={`text-sm font-medium text-${color}-600 whitespace-nowrap ml-2`}>
+                          <h3 className={`font-medium whitespace-nowrap ${
+                            selectedCategory === category.name 
+                              ? TEXT_DARK_COLOR_CLASSES[color]
+                              : 'text-gray-700'
+                          }`}>{category.name}</h3>
+                          <span className={`text-sm font-medium whitespace-nowrap ml-2 ${
+                            selectedCategory === category.name 
+                              ? TEXT_COLOR_CLASSES[color]
+                              : 'text-gray-500'
+                          }`}>
                             {category.completedQuestions}/{category.totalQuestions}
                           </span>
                         </div>
                         <Progress 
                           value={progress} 
                           size="sm"
-                          color={color}
+                          color={selectedCategory === category.name ? color : 'blue'}
                         />
                       </div>
                     )}
