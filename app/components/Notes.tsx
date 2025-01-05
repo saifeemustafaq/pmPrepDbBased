@@ -3,7 +3,7 @@
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { useEffect, useState } from 'react';
-import { PencilIcon, Bold, Italic, List, Undo, Redo, Download, Trash2 } from 'lucide-react';
+import { PencilIcon, Bold, Italic, List, Undo, Redo, Download, Trash2, FileText } from 'lucide-react';
 import { getNote, saveNote } from '../lib/notes';
 import { formatDistanceToNow } from 'date-fns';
 import { useAnalytics } from '../hooks/useAnalytics';
@@ -18,7 +18,23 @@ export function Notes({ questionId }: NotesProps) {
   const { trackEvent } = useAnalytics();
 
   const editor = useEditor({
-    extensions: [StarterKit],
+    extensions: [
+      StarterKit.configure({
+        bulletList: {},
+        orderedList: {},
+        listItem: {},
+        bold: {},
+        italic: {},
+        strike: {},
+        code: {},
+        heading: {
+          levels: [1, 2, 3, 4, 5, 6],
+        },
+        codeBlock: {},
+        blockquote: {},
+        horizontalRule: {},
+      }),
+    ],
     editorProps: {
       attributes: {
         class: 'prose prose-sm max-w-none focus:outline-none min-h-[150px] p-2',
@@ -40,6 +56,9 @@ export function Notes({ questionId }: NotesProps) {
         content.length
       );
     },
+    parseOptions: {
+      preserveWhitespace: 'full',
+    },
   });
 
   // Load initial content
@@ -53,9 +72,9 @@ export function Notes({ questionId }: NotesProps) {
     const isEmptyEditor = currentContent === '<p></p>' || currentContent === '';
     const hasContentChanged = note.content && note.content !== currentContent;
 
-    if (isEmptyEditor || hasContentChanged) {
-      const content = note.content || '';
-      editor.commands.setContent(content, false); // false prevents adding to history stack
+    // Only update if we really need to
+    if ((isEmptyEditor && note.content) || (hasContentChanged && note.content)) {
+      editor.commands.setContent(note.content, false);
       setLastEdited(note.lastEdited);
       
       const text = editor.getText();
@@ -66,12 +85,33 @@ export function Notes({ questionId }: NotesProps) {
         'note_load',
         'Notes',
         questionId,
-        content.length
+        note.content.length
       );
     }
-  }, [questionId, editor, trackEvent]);
+  }, [questionId, editor, trackEvent]); // Add editor and trackEvent to dependencies
 
-  const handleDownload = () => {
+  const handleDownloadMarkdown = () => {
+    if (!editor) return;
+    const content = editor.getHTML();
+    const blob = new Blob([content], { type: 'text/markdown' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `notes-${questionId}-${new Date().toISOString().split('T')[0]}.md`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    trackEvent(
+      'notes_download',
+      'Notes',
+      questionId + '_markdown',
+      content.length
+    );
+  };
+
+  const handleDownloadText = () => {
     if (!editor) return;
     const content = editor.getText();
     const blob = new Blob([content], { type: 'text/plain' });
@@ -87,7 +127,7 @@ export function Notes({ questionId }: NotesProps) {
     trackEvent(
       'notes_download',
       'Notes',
-      questionId,
+      questionId + '_text',
       content.length
     );
   };
@@ -115,18 +155,34 @@ export function Notes({ questionId }: NotesProps) {
           <div className="bg-purple-100 p-1.5 rounded-md">
             <PencilIcon className="w-4 h-4 text-purple-700" />
           </div>
-          <h4 className="font-semibold text-purple-900 text-sm uppercase tracking-wide">
-            My Notes
-          </h4>
+          <div className="flex flex-col">
+            <h4 className="font-semibold text-purple-900 text-sm uppercase tracking-wide">
+              My Notes
+            </h4>
+            <span className="text-xs text-gray-500 flex items-center gap-1">
+              <FileText className="w-3 h-3" /> Markdown supported
+            </span>
+          </div>
         </div>
         <div className="flex items-center gap-2">
-          <button
-            onClick={handleDownload}
-            className="p-1.5 text-gray-500 hover:text-purple-600 hover:bg-purple-50 rounded-md transition-colors"
-            title="Download notes"
-          >
-            <Download className="w-4 h-4" />
-          </button>
+          <div className="flex items-center">
+            <button
+              onClick={handleDownloadMarkdown}
+              className="p-1.5 text-gray-500 hover:text-purple-600 hover:bg-purple-50 rounded-md transition-colors flex items-center gap-1"
+              title="Download as Markdown"
+            >
+              <Download className="w-4 h-4" />
+              <span className="text-xs">.md</span>
+            </button>
+            <button
+              onClick={handleDownloadText}
+              className="p-1.5 text-gray-500 hover:text-purple-600 hover:bg-purple-50 rounded-md transition-colors flex items-center gap-1"
+              title="Download as plain text"
+            >
+              <Download className="w-4 h-4" />
+              <span className="text-xs">.txt</span>
+            </button>
+          </div>
           <button
             onClick={handleClear}
             className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"

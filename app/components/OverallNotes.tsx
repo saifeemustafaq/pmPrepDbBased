@@ -6,7 +6,7 @@ import StarterKit from '@tiptap/starter-kit';
 import { useEditor } from '@tiptap/react';
 import { format } from 'date-fns';
 import { useAnalytics } from '../hooks/useAnalytics';
-import { ChevronLeft, ChevronRight, Bold, Italic, List, Undo, Redo, Download, Trash2, BookOpen } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Bold, Italic, List, Undo, Redo, Download, Trash2, BookOpen, FileText } from 'lucide-react';
 
 interface OverallNotesProps {
   isExpanded: boolean;
@@ -19,7 +19,23 @@ export default function OverallNotes({ isExpanded, onToggle }: OverallNotesProps
   const [lastEdited, setLastEdited] = useState<Date | null>(null);
   
   const editor = useEditor({
-    extensions: [StarterKit],
+    extensions: [
+      StarterKit.configure({
+        bulletList: {},
+        orderedList: {},
+        listItem: {},
+        bold: {},
+        italic: {},
+        strike: {},
+        code: {},
+        heading: {
+          levels: [1, 2, 3, 4, 5, 6],
+        },
+        codeBlock: {},
+        blockquote: {},
+        horizontalRule: {},
+      }),
+    ],
     editorProps: {
       attributes: {
         class: 'prose prose-sm max-w-none focus:outline-none min-h-[150px] p-2',
@@ -42,6 +58,9 @@ export default function OverallNotes({ isExpanded, onToggle }: OverallNotesProps
           Math.floor(words / 10) * 10
         );
       }
+    },
+    parseOptions: {
+      preserveWhitespace: 'full',
     },
   });
 
@@ -70,7 +89,28 @@ export default function OverallNotes({ isExpanded, onToggle }: OverallNotesProps
     }
   }, [editor]);
 
-  const handleDownload = () => {
+  const handleDownloadMarkdown = () => {
+    if (!editor) return;
+    const content = editor.getHTML();
+    const blob = new Blob([content], { type: 'text/markdown' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `overall-notes-${format(new Date(), 'yyyy-MM-dd')}.md`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    trackEvent(
+      'notes_download',
+      'Overall Notes',
+      'Download Notes Markdown',
+      wordCount
+    );
+  };
+
+  const handleDownloadText = () => {
     if (!editor) return;
     const content = editor.getText();
     const blob = new Blob([content], { type: 'text/plain' });
@@ -86,7 +126,7 @@ export default function OverallNotes({ isExpanded, onToggle }: OverallNotesProps
     trackEvent(
       'notes_download',
       'Overall Notes',
-      'Download Notes',
+      'Download Notes Text',
       wordCount
     );
   };
@@ -130,92 +170,112 @@ export default function OverallNotes({ isExpanded, onToggle }: OverallNotesProps
       </div>
 
       <div className={`h-full flex flex-col ${isExpanded ? 'opacity-100' : 'opacity-0'} transition-opacity duration-300`}>
-        <div className="flex items-center justify-between p-4 border-b border-gray-200">
-          <div className="flex items-center gap-2">
-            <div className="bg-blue-100 p-1.5 rounded-md">
-              <BookOpen className="w-4 h-4 text-blue-700" />
+        <div className="p-4 border-b border-gray-200">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="bg-blue-100 p-1.5 rounded-md">
+                <BookOpen className="w-4 h-4 text-blue-700" />
+              </div>
+              <h2 className="font-semibold text-blue-900 text-sm uppercase tracking-wide">
+                Overall Notes
+              </h2>
             </div>
-            <h2 className="font-semibold text-blue-900 text-sm uppercase tracking-wide">Overall Notes</h2>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handleDownload}
-              className="p-1.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
-              title="Download notes"
-            >
-              <Download className="w-4 h-4" />
-            </button>
-            <button
-              onClick={handleClear}
-              className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
-              title="Clear notes"
-            >
-              <Trash2 className="w-4 h-4" />
-            </button>
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={handleDownloadMarkdown}
+                  className="px-2 py-1 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors flex items-center gap-1 text-xs"
+                  title="Download as Markdown"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  .md
+                </button>
+                <button
+                  onClick={handleDownloadText}
+                  className="px-2 py-1 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors flex items-center gap-1 text-xs"
+                  title="Download as plain text"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  .txt
+                </button>
+              </div>
+              <button
+                onClick={handleClear}
+                className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
+                title="Clear notes"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </div>
           </div>
         </div>
 
         {editor && (
-          <div className="border-b border-gray-200 h-[64px] flex items-center">
-            <div className="flex items-center justify-center gap-1 w-full">
-              <button
-                onClick={() => editor.chain().focus().toggleBold().run()}
-                className={`p-1.5 rounded-md transition-colors ${
-                  editor.isActive('bold')
-                    ? 'bg-blue-100 text-blue-700'
-                    : 'text-gray-500 hover:bg-blue-50 hover:text-blue-600'
-                }`}
-                title="Bold"
-              >
-                <Bold className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => editor.chain().focus().toggleItalic().run()}
-                className={`p-1.5 rounded-md transition-colors ${
-                  editor.isActive('italic')
-                    ? 'bg-blue-100 text-blue-700'
-                    : 'text-gray-500 hover:bg-blue-50 hover:text-blue-600'
-                }`}
-                title="Italic"
-              >
-                <Italic className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => editor.chain().focus().toggleBulletList().run()}
-                className={`p-1.5 rounded-md transition-colors ${
-                  editor.isActive('bulletList')
-                    ? 'bg-blue-100 text-blue-700'
-                    : 'text-gray-500 hover:bg-blue-50 hover:text-blue-600'
-                }`}
-                title="Bullet list"
-              >
-                <List className="w-4 h-4" />
-              </button>
-              <div className="mx-1 h-6 w-px bg-gray-200" />
-              <button
-                onClick={() => editor.chain().focus().undo().run()}
-                disabled={!editor.can().undo()}
-                className={`p-1.5 rounded-md transition-colors ${
-                  editor.can().undo()
-                    ? 'text-gray-500 hover:bg-blue-50 hover:text-blue-600'
-                    : 'text-gray-300 cursor-not-allowed'
-                }`}
-                title="Undo"
-              >
-                <Undo className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => editor.chain().focus().redo().run()}
-                disabled={!editor.can().redo()}
-                className={`p-1.5 rounded-md transition-colors ${
-                  editor.can().redo()
-                    ? 'text-gray-500 hover:bg-blue-50 hover:text-blue-600'
-                    : 'text-gray-300 cursor-not-allowed'
-                }`}
-                title="Redo"
-              >
-                <Redo className="w-4 h-4" />
-              </button>
+          <div className="border-b border-gray-200">
+            <div className="flex flex-col">
+              <div className="flex items-center justify-center gap-1 w-full p-2 border-b border-gray-100">
+                <button
+                  onClick={() => editor.chain().focus().toggleBold().run()}
+                  className={`p-1.5 rounded-md transition-colors ${
+                    editor.isActive('bold')
+                      ? 'bg-blue-100 text-blue-700'
+                      : 'text-gray-500 hover:bg-blue-50 hover:text-blue-600'
+                  }`}
+                  title="Bold"
+                >
+                  <Bold className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => editor.chain().focus().toggleItalic().run()}
+                  className={`p-1.5 rounded-md transition-colors ${
+                    editor.isActive('italic')
+                      ? 'bg-blue-100 text-blue-700'
+                      : 'text-gray-500 hover:bg-blue-50 hover:text-blue-600'
+                  }`}
+                  title="Italic"
+                >
+                  <Italic className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => editor.chain().focus().toggleBulletList().run()}
+                  className={`p-1.5 rounded-md transition-colors ${
+                    editor.isActive('bulletList')
+                      ? 'bg-blue-100 text-blue-700'
+                      : 'text-gray-500 hover:bg-blue-50 hover:text-blue-600'
+                  }`}
+                  title="Bullet list"
+                >
+                  <List className="w-4 h-4" />
+                </button>
+                <div className="mx-1 h-6 w-px bg-gray-200" />
+                <button
+                  onClick={() => editor.chain().focus().undo().run()}
+                  disabled={!editor.can().undo()}
+                  className={`p-1.5 rounded-md transition-colors ${
+                    editor.can().undo()
+                      ? 'text-gray-500 hover:bg-blue-50 hover:text-blue-600'
+                      : 'text-gray-300 cursor-not-allowed'
+                  }`}
+                  title="Undo"
+                >
+                  <Undo className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => editor.chain().focus().redo().run()}
+                  disabled={!editor.can().redo()}
+                  className={`p-1.5 rounded-md transition-colors ${
+                    editor.can().redo()
+                      ? 'text-gray-500 hover:bg-blue-50 hover:text-blue-600'
+                      : 'text-gray-300 cursor-not-allowed'
+                  }`}
+                  title="Redo"
+                >
+                  <Redo className="w-4 h-4" />
+                </button>
+              </div>
+              <div className="py-1 bg-gray-50 border-gray-100 text-xs text-gray-500 flex items-center justify-center gap-1">
+                <FileText className="w-3 h-3" /> Markdown supported
+              </div>
             </div>
           </div>
         )}
