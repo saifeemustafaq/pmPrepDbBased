@@ -39,6 +39,18 @@ export function setQuestionProgress(questionId: string, isCompleted: boolean) {
   }
 }
 
+export function clearProgress(): boolean {
+  if (typeof window === 'undefined') return false;
+  
+  try {
+    localStorage.removeItem(STORAGE_KEY);
+    return true;
+  } catch (error) {
+    console.error('Error clearing progress from localStorage:', error);
+    return false;
+  }
+}
+
 export function calculateProgress(questionIds: string[]): {
   completed: number;
   total: number;

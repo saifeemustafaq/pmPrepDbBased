@@ -4,6 +4,8 @@ import { Category } from '../types';
 import { Progress } from '../components/ui/Progress';
 import Image from 'next/image';
 import { useState } from 'react';
+import { clearProgress } from '../lib/progress';
+import { clearNotes } from '../lib/notes';
 import { 
   ChevronLeft, 
   ChevronRight, 
@@ -17,6 +19,7 @@ import {
   Send,
   MessageCircle
 } from 'lucide-react';
+import { useAnalytics } from '../hooks/useAnalytics';
 
 interface SidebarProps {
   categories: Category[];
@@ -32,6 +35,31 @@ const CATEGORY_COLORS: { [key: string]: 'blue' | 'purple' | 'green' | 'orange' |
   'Strategy': 'green',
   'Execution': 'orange',
   'Estimation': 'pink'
+};
+
+// Add color class mappings
+const TEXT_COLOR_CLASSES = {
+  blue: 'text-blue-600',
+  purple: 'text-purple-600',
+  green: 'text-green-600',
+  orange: 'text-orange-600',
+  pink: 'text-pink-600'
+};
+
+const BG_COLOR_CLASSES = {
+  blue: 'bg-blue-50 border-blue-100',
+  purple: 'bg-purple-50 border-purple-100',
+  green: 'bg-green-50 border-green-100',
+  orange: 'bg-orange-50 border-orange-100',
+  pink: 'bg-pink-50 border-pink-100'
+};
+
+const TEXT_DARK_COLOR_CLASSES = {
+  blue: 'text-blue-900',
+  purple: 'text-purple-900',
+  green: 'text-green-900',
+  orange: 'text-orange-900',
+  pink: 'text-pink-900'
 };
 
 const CATEGORY_ICONS: { [key: string]: React.ReactNode } = {
@@ -50,15 +78,46 @@ export function Sidebar({
   onCollapsedChange 
 }: SidebarProps) {
   const [showMoreOptions, setShowMoreOptions] = useState(false);
+  const { trackEvent } = useAnalytics();
   const totalQuestions = categories.reduce((acc, cat) => acc + cat.totalQuestions, 0);
   const totalCompleted = categories.reduce((acc, cat) => acc + cat.completedQuestions, 0);
   const overallProgress = totalQuestions > 0 ? (totalCompleted / totalQuestions) * 100 : 0;
 
   const handleClearProgress = () => {
-    if (window.confirm('Are you sure you want to clear all progress? This action cannot be undone.')) {
-      // Add logic to clear progress
-      console.log('Clearing progress...');
+    if (window.confirm('Are you sure you want to clear all progress and notes? This action cannot be undone.')) {
+      const clearedProgress = clearProgress();
+      const clearedNotes = clearNotes();
+      
+      if (clearedProgress && clearedNotes) {
+        trackEvent(
+          'clear_progress',
+          'User Action',
+          'Clear All Progress',
+          totalCompleted
+        );
+        window.location.reload();
+      } else {
+        alert('Failed to clear data. Please try again.');
+      }
     }
+  };
+
+  const handleCategorySelect = (category: string) => {
+    trackEvent(
+      'category_selection',
+      'Navigation',
+      category
+    );
+    onSelectCategory(category);
+  };
+
+  const handleSidebarToggle = (newIsCollapsed: boolean) => {
+    trackEvent(
+      'sidebar_toggle',
+      'UI Interaction',
+      newIsCollapsed ? 'collapse' : 'expand'
+    );
+    onCollapsedChange(newIsCollapsed);
   };
 
   return (
@@ -68,7 +127,7 @@ export function Sidebar({
         transition-all duration-300 ease-in-out z-10`}
     >
       <div 
-        onClick={() => onCollapsedChange(!isCollapsed)}
+        onClick={() => handleSidebarToggle(!isCollapsed)}
         className="absolute -right-6 top-16 w-12 h-12 bg-white rounded-full border border-gray-200 shadow-sm flex items-center justify-center cursor-pointer hover:bg-gray-50 transition-colors z-20"
         role="button"
         aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
@@ -146,27 +205,35 @@ export function Sidebar({
                   key={category.name}
                   className={`p-3 rounded-lg cursor-pointer transition-all duration-200 ${
                     selectedCategory === category.name
-                      ? `bg-${color}-50 border border-${color}-100 shadow-sm`
+                      ? BG_COLOR_CLASSES[color]
                       : 'hover:bg-gray-100'
                   }`}
-                  onClick={() => onSelectCategory(category.name)}
+                  onClick={() => handleCategorySelect(category.name)}
                 >
                   <div className="flex items-center gap-3">
-                    <div className={`text-${color}-600`}>
+                    <div className={selectedCategory === category.name ? TEXT_COLOR_CLASSES[color] : 'text-gray-500'}>
                       {CATEGORY_ICONS[category.name]}
                     </div>
                     {!isCollapsed && (
                       <div className="flex-1">
                         <div className="flex justify-between items-center mb-2">
-                          <h3 className={`font-medium text-${color}-900 whitespace-nowrap`}>{category.name}</h3>
-                          <span className={`text-sm font-medium text-${color}-600 whitespace-nowrap ml-2`}>
+                          <h3 className={`font-medium whitespace-nowrap ${
+                            selectedCategory === category.name 
+                              ? TEXT_DARK_COLOR_CLASSES[color]
+                              : 'text-gray-700'
+                          }`}>{category.name}</h3>
+                          <span className={`text-sm font-medium whitespace-nowrap ml-2 ${
+                            selectedCategory === category.name 
+                              ? TEXT_COLOR_CLASSES[color]
+                              : 'text-gray-500'
+                          }`}>
                             {category.completedQuestions}/{category.totalQuestions}
                           </span>
                         </div>
                         <Progress 
                           value={progress} 
                           size="sm"
-                          color={color}
+                          color={selectedCategory === category.name ? color : 'blue'}
                         />
                       </div>
                     )}

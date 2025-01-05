@@ -3,13 +3,15 @@
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { BookOpen, LightbulbIcon } from 'lucide-react';
+import { Notes } from './Notes';
 
 interface QuestionViewProps {
   howToAnswer: string;
   exampleAnswer: string;
+  questionId: string;
 }
 
-export function QuestionView({ howToAnswer, exampleAnswer }: QuestionViewProps) {
+export function QuestionView({ howToAnswer, exampleAnswer, questionId }: QuestionViewProps) {
   return (
     <div className="space-y-6 font-poppins">
       <div className="bg-blue-50/70 p-6 rounded-lg border border-blue-100">
@@ -35,6 +37,8 @@ export function QuestionView({ howToAnswer, exampleAnswer }: QuestionViewProps) 
           </ReactMarkdown>
         </div>
       </div>
+
+      <Notes questionId={questionId} />
     </div>
   );
 } 

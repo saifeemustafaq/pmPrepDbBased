@@ -114,6 +114,7 @@ export function QuestionList({ subCategories, onToggleQuestion, categoryName, is
                             <QuestionView
                               howToAnswer={question.howToAnswer}
                               exampleAnswer={question.exampleAnswer}
+                              questionId={question._id}
                             />
                           )}
                         </div>

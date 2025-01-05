@@ -10,6 +10,10 @@
   },
   "dependencies": {
     "@tailwindcss/typography": "^0.5.15",
+    "@tiptap/pm": "^2.11.0",
+    "@tiptap/react": "^2.11.0",
+    "@tiptap/starter-kit": "^2.11.0",
+    "date-fns": "^4.1.0",
     "lucide-react": "^0.469.0",
     "mongodb": "^6.12.0",
     "next": "15.1.3",

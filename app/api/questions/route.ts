@@ -2,6 +2,11 @@ import { NextResponse } from 'next/server';
 import clientPromise from '@/app/lib/mongodb';
 import { NextRequest } from 'next/server';
 
+interface QueryFilter {
+  category?: string;
+  subCategory?: string;
+}
+
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
@@ -13,7 +18,7 @@ export async function GET(request: NextRequest) {
     const questions = db.collection('questions');
     
     // Build query based on provided filters
-    const query: any = {};
+    const query: QueryFilter = {};
     if (category) query.category = category;
     if (subCategory) query.subCategory = subCategory;
     
