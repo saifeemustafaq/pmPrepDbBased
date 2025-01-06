@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import clientPromise from '@/app/lib/mongodb';
 import { Document, ObjectId } from 'mongodb';
+import { trackQuestionCompletion } from '@/app/lib/analytics';
 
 interface QuestionDocument extends Document {
   _id: string | ObjectId;
   isCompleted?: boolean;
+  title: string;
+  category: string;
 }
 
 export async function POST(request: NextRequest) {
@@ -54,6 +57,15 @@ export async function POST(request: NextRequest) {
     }
 
     const newIsCompleted = !question.isCompleted;
+    
+    // Track the completion status change
+    trackQuestionCompletion(
+      idString,
+      question.title,
+      question.category,
+      newIsCompleted
+    );
+
     return NextResponse.json({ 
       success: true,
       isCompleted: newIsCompleted,

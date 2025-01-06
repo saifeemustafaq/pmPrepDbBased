@@ -47,6 +47,7 @@ export function Notes({ questionId }: NotesProps) {
           if (!isEditing.current) {
             isEditing.current = true;
             analytics.startNoteEdit();
+            analytics.trackNotesUsage(questionId === 'overall' ? 'overall' : 'question', questionId === 'overall' ? undefined : questionId);
           }
           return false;
         },

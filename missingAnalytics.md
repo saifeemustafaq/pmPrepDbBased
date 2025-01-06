@@ -1,3 +1,13 @@
+With the current analytics as it is now, are we achieving this:
+
+Which question is clicked and expanded the most.
+Which question has been marked complete the most.
+which section in the sidebar is clicked the most
+Which question has user spent most time on.
+Which category has user spent most time on.
+How many users used the Overall Notes in the right sidebar
+how many users have revisited the app after visiting it once
+
 This whole app is being hosted on vercel.
 
 Again , remember we dont want to implement any storage with mongodb or somewhere else, I just want to ensure that each and all data is being tracked and sent to google analytics so that I can view and use that data later.

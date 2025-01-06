@@ -21,6 +21,7 @@ export default function ClientLayout({
   useEffect(() => {
     // Initialize session tracking
     analytics.initSession();
+    analytics.trackReturnVisit();
 
     const handleBeforeUnload = () => {
       analytics.trackSessionEnd();

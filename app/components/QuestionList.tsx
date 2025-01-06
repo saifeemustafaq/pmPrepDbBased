@@ -50,6 +50,11 @@ export function QuestionList({ subCategories, onToggleQuestion, categoryName, is
     const newSelectedId = selectedQuestion === question._id ? null : question._id;
     const currentTime = Date.now();
     
+    // Track question expansion
+    if (newSelectedId) {
+      analytics.trackQuestionExpansion(question._id, question.question, categoryName);
+    }
+    
     // Track previous question metrics if exists
     if (selectedQuestion && questionStartTime) {
       const timeSpent = Math.floor((currentTime - questionStartTime) / 1000);

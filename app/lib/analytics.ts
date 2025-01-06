@@ -177,4 +177,79 @@ export const trackUIInteraction = (component: string, action: string, value?: nu
     navigation_section: component,
     interaction_count: value || 1
   });
+};
+
+// Question expansion tracking
+export const trackQuestionExpansion = (questionId: string, questionTitle: string, category: string) => {
+  gtag.event({
+    action: 'question_expansion',
+    category: 'Question Interaction',
+    label: `${category} - ${questionTitle}`,
+    value: 1,
+    question_id: questionId,
+    question_category: category,
+    interaction_count: 1
+  });
+};
+
+// Sidebar section tracking
+export const trackSidebarSectionClick = (section: string) => {
+  gtag.event({
+    action: 'sidebar_section_click',
+    category: 'Navigation',
+    label: section,
+    value: 1,
+    navigation_section: section,
+    interaction_count: 1
+  });
+};
+
+// Notes usage tracking
+export const trackNotesUsage = (type: 'overall' | 'question', questionId?: string) => {
+  gtag.event({
+    action: 'notes_usage',
+    category: 'Notes',
+    label: type === 'overall' ? 'Overall Notes' : `Question ${questionId} Notes`,
+    value: 1,
+    notes_type: type,
+    question_id: questionId,
+    interaction_count: 1
+  });
+};
+
+// Return visit tracking
+export const trackReturnVisit = () => {
+  const lastVisit = localStorage.getItem('lastVisit');
+  const currentTime = new Date().toISOString();
+  
+  if (lastVisit) {
+    gtag.event({
+      action: 'return_visit',
+      category: 'User Retention',
+      label: `Last visit: ${lastVisit}`,
+      value: 1,
+      user_type: 'returning',
+      interaction_count: 1
+    });
+  }
+  
+  localStorage.setItem('lastVisit', currentTime);
+};
+
+// Question completion tracking
+export const trackQuestionCompletion = (
+  questionId: string,
+  questionTitle: string,
+  category: string,
+  isCompleted: boolean
+) => {
+  gtag.event({
+    action: 'question_completion',
+    category: 'Question Interaction',
+    label: `${category} - ${questionTitle} (${isCompleted ? 'completed' : 'uncompleted'})`,
+    value: isCompleted ? 1 : 0,
+    question_id: questionId,
+    question_category: category,
+    completion_status: isCompleted
+  });
 }; 
