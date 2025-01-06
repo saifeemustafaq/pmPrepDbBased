@@ -8,6 +8,8 @@ import { getProgress, setQuestionProgress } from './lib/progress';
 import { useAnalytics } from './hooks/useAnalytics';
 import { useOverallNotes } from './hooks/useOverallNotes';
 import OverallNotes from './components/OverallNotes';
+import { ErrorBoundary } from './components/ErrorBoundary';
+import * as analytics from './lib/analytics';
 
 const CATEGORIES = [
   {
@@ -58,41 +60,49 @@ export default function Home() {
 
   const fetchQuestions = useCallback(async () => {
     try {
+      const startTime = performance.now();
+      console.log('Fetching questions...');
       const response = await fetch('/api/questions');
-      const result: ApiResponse<Question[]> = await response.json();
-      
-      if (!result.success || !result.data) {
-        throw new Error(result.error || 'Failed to fetch questions');
+      const data: ApiResponse<Question[]> = await response.json();
+      console.log('API Response:', data);
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to fetch questions');
       }
 
-      const questions = result.data;
-      const savedProgress = getProgress();
-      
-      // Process questions into categories
-      const processedCategories = CATEGORIES.map(cat => {
-        const categoryQuestions = questions.filter(q => q.category === cat.name);
-        const subCategories = cat.subCategories.map(subCat => {
-          const subCategoryQuestions = categoryQuestions.filter(q => q.subCategory === subCat);
-          const completedCount = subCategoryQuestions.filter(q => savedProgress[q._id]).length;
-          
-          return {
-            name: subCat,
-            questions: subCategoryQuestions.map(q => ({
+      // Track API performance
+      const endTime = performance.now();
+      analytics.trackFeatureUsage('api', 'fetch_questions', endTime - startTime);
+
+      const progress = getProgress();
+      // Use either data.questions or data.data, falling back to an empty array
+      const questions = data.questions || data.data || [];
+      console.log('Processed questions:', questions);
+
+      const processedCategories = CATEGORIES.map(category => {
+        const categoryQuestions = questions.filter((q: Question) => q.category === category.name);
+        console.log(`Questions for category ${category.name}:`, categoryQuestions);
+        const subCategories = category.subCategories.map(subName => {
+          const questions = categoryQuestions
+            .filter((q: Question) => q.subCategory === subName)
+            .map((q: Question) => ({
               ...q,
-              isCompleted: savedProgress[q._id] || false
-            })),
-            totalQuestions: subCategoryQuestions.length,
-            completedQuestions: completedCount
+              isCompleted: progress[q._id] || false
+            }));
+
+          return {
+            name: subName,
+            questions,
+            completedQuestions: questions.filter((q: Question) => q.isCompleted).length,
+            totalQuestions: questions.length
           };
         });
 
-        const totalCompleted = subCategories.reduce((acc, sub) => acc + sub.completedQuestions, 0);
-
         return {
-          name: cat.name,
+          name: category.name,
           subCategories,
-          totalQuestions: categoryQuestions.length,
-          completedQuestions: totalCompleted
+          completedQuestions: subCategories.reduce((acc, sub) => acc + sub.completedQuestions, 0),
+          totalQuestions: subCategories.reduce((acc, sub) => acc + sub.totalQuestions, 0)
         };
       });
 
@@ -103,6 +113,11 @@ export default function Home() {
       setLoading(false);
     } catch (error) {
       console.error('Error fetching questions:', error);
+      analytics.trackError(
+        'API Error',
+        error instanceof Error ? error.message : 'Unknown error fetching questions',
+        'QuestionsFetch'
+      );
       setLoading(false);
     }
   }, [selectedCategory]);
@@ -111,79 +126,93 @@ export default function Home() {
     fetchQuestions();
   }, [fetchQuestions]);
 
-  const handleToggleQuestion = async (questionId: string) => {
-    try {
-      setCategories(prevCategories => {
-        const newCategories = prevCategories.map(category => ({
-          ...category,
-          subCategories: category.subCategories.map(subCategory => {
-            const updatedQuestions = subCategory.questions.map(question => {
-              if (question._id === questionId) {
-                const newIsCompleted = !question.isCompleted;
-                // Update localStorage
-                setQuestionProgress(questionId, newIsCompleted);
-                // Track question completion
-                trackEvent(
-                  'question_completion',
-                  'Question Progress',
-                  `${question.category} - ${question.subCategory}`,
-                  newIsCompleted ? 1 : 0
-                );
-                return { ...question, isCompleted: newIsCompleted };
-              }
-              return question;
-            });
+  const handleToggleQuestion = (questionId: string) => {
+    // Find current question state
+    const currentQuestion = categories
+      .flatMap(cat => cat.subCategories)
+      .flatMap(sub => sub.questions)
+      .find(q => q._id === questionId);
 
-            return {
-              ...subCategory,
-              questions: updatedQuestions,
-              completedQuestions: updatedQuestions.filter(q => q.isCompleted).length
-            };
-          }),
-        }));
+    if (!currentQuestion) return;
 
-        // Update category completion counts
-        return newCategories.map(category => ({
-          ...category,
-          completedQuestions: category.subCategories.reduce(
-            (acc, sub) => acc + sub.completedQuestions, 0
-          )
-        }));
+    // Update the completion state
+    const newIsCompleted = !currentQuestion.isCompleted;
+    
+    // Update local storage
+    setQuestionProgress(questionId, newIsCompleted);
+    
+    // Update the UI state
+    const updatedCategories = categories.map(category => {
+      let categoryCompletedCount = 0;
+      const updatedSubCategories = category.subCategories.map(subCategory => {
+        const updatedQuestions = subCategory.questions.map(question => 
+          question._id === questionId 
+            ? { ...question, isCompleted: newIsCompleted }
+            : question
+        );
+        
+        const subCategoryCompletedCount = updatedQuestions.filter(q => q.isCompleted).length;
+        categoryCompletedCount += subCategoryCompletedCount;
+        
+        return {
+          ...subCategory,
+          questions: updatedQuestions,
+          completedQuestions: subCategoryCompletedCount,
+          totalQuestions: subCategory.questions.length
+        };
       });
-    } catch (error) {
-      console.error('Error toggling question:', error);
-    }
+
+      return {
+        ...category,
+        subCategories: updatedSubCategories,
+        completedQuestions: categoryCompletedCount,
+        totalQuestions: updatedSubCategories.reduce((acc, sub) => acc + sub.totalQuestions, 0)
+      };
+    });
+
+    setCategories(updatedCategories);
+    
+    // Track analytics
+    trackEvent(
+      'question_completion',
+      'Question Progress',
+      `${currentQuestion.category} - ${currentQuestion.subCategory}`,
+      newIsCompleted ? 1 : 0
+    );
   };
 
   if (loading) {
-    return <div className="flex items-center justify-center h-screen">Loading...</div>;
+    return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
   }
 
-  const selectedCategoryData = categories.find(c => c.name === selectedCategory);
-
   return (
-    <div className="flex h-screen relative">
-      <Sidebar
-        categories={categories}
-        selectedCategory={selectedCategory}
-        onSelectCategory={setSelectedCategory}
-        isCollapsed={isSidebarCollapsed}
-        onCollapsedChange={setIsSidebarCollapsed}
-      />
-      {selectedCategoryData && (
-        <div className={`flex-1 ${isExpanded ? 'mr-80' : 'mr-10'} transition-all duration-300`}>
-          <QuestionList
-            subCategories={selectedCategoryData.subCategories}
-            onToggleQuestion={handleToggleQuestion}
-            categoryName={selectedCategoryData.name}
-            isSidebarCollapsed={isSidebarCollapsed}
-          />
-        </div>
-      )}
-      <OverallNotes
-        isExpanded={isExpanded}
-        onToggle={toggleExpanded}
-      />
+    <div className="flex min-h-screen bg-gray-50">
+      <ErrorBoundary componentName="Sidebar">
+        <Sidebar
+          categories={categories}
+          selectedCategory={selectedCategory}
+          onSelectCategory={setSelectedCategory}
+          isCollapsed={isSidebarCollapsed}
+          onCollapsedChange={setIsSidebarCollapsed}
+        />
+      </ErrorBoundary>
+
+      <ErrorBoundary componentName="QuestionList">
+        <QuestionList
+          subCategories={categories.find(c => c.name === selectedCategory)?.subCategories || []}
+          onToggleQuestion={handleToggleQuestion}
+          categoryName={selectedCategory}
+          isSidebarCollapsed={isSidebarCollapsed}
+          isRightSidebarExpanded={isExpanded}
+        />
+      </ErrorBoundary>
+
+      <ErrorBoundary componentName="OverallNotes">
+        <OverallNotes
+          isExpanded={isExpanded}
+          onToggle={toggleExpanded}
+        />
+      </ErrorBoundary>
     </div>
   );
 }

@@ -7,6 +7,7 @@ import { PencilIcon, Bold, Italic, List, Undo, Redo, Download, Trash2, FileText 
 import { getNote, saveNote } from '../lib/notes';
 import { formatDistanceToNow } from 'date-fns';
 import { useAnalytics } from '../hooks/useAnalytics';
+import * as analytics from '../lib/analytics';
 
 interface NotesProps {
   questionId: string;
@@ -17,6 +18,7 @@ export function Notes({ questionId }: NotesProps) {
   const [wordCount, setWordCount] = useState(0);
   const { trackEvent } = useAnalytics();
   const initialLoadDone = useRef(false);
+  const isEditing = useRef(false);
 
   const editor = useEditor({
     extensions: [
@@ -40,6 +42,25 @@ export function Notes({ questionId }: NotesProps) {
       attributes: {
         class: 'prose prose-sm max-w-none focus:outline-none min-h-[150px] p-2',
       },
+      handleDOMEvents: {
+        focus: () => {
+          if (!isEditing.current) {
+            isEditing.current = true;
+            analytics.startNoteEdit();
+            analytics.trackNotesUsage(questionId === 'overall' ? 'overall' : 'question', questionId === 'overall' ? undefined : questionId);
+          }
+          return false;
+        },
+        blur: () => {
+          if (isEditing.current) {
+            isEditing.current = false;
+            if (editor) {
+              analytics.endNoteEdit(questionId, editor.getHTML().length);
+            }
+          }
+          return false;
+        }
+      }
     },
     onUpdate: ({ editor }) => {
       if (!initialLoadDone.current) return;
@@ -58,10 +79,26 @@ export function Notes({ questionId }: NotesProps) {
         questionId,
         content.length
       );
+
+      const markdownFeatures = {
+        bold: content.includes('**') || content.includes('__'),
+        italic: content.includes('*') || content.includes('_'),
+        lists: content.includes('- ') || content.includes('1. '),
+        headers: content.includes('#'),
+        code: content.includes('`'),
+        blockquote: content.includes('>')
+      };
+
+      Object.entries(markdownFeatures).forEach(([feature, used]) => {
+        if (used) {
+          analytics.trackFeatureUsage('markdown', feature);
+        }
+      });
     },
     parseOptions: {
       preserveWhitespace: 'full',
     },
+    immediatelyRender: false,
   });
 
   // Load initial content
@@ -109,6 +146,7 @@ export function Notes({ questionId }: NotesProps) {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
 
+    analytics.trackFeatureUsage('notes', 'download_markdown', content.length);
     trackEvent(
       'notes_download',
       'Notes',
@@ -130,6 +168,7 @@ export function Notes({ questionId }: NotesProps) {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
 
+    analytics.trackFeatureUsage('notes', 'download_text', content.length);
     trackEvent(
       'notes_download',
       'Notes',
@@ -145,6 +184,7 @@ export function Notes({ questionId }: NotesProps) {
       setLastEdited(new Date().toISOString());
       setWordCount(0);
 
+      analytics.trackFeatureUsage('notes', 'clear');
       trackEvent(
         'notes_clear',
         'Notes',
@@ -152,6 +192,11 @@ export function Notes({ questionId }: NotesProps) {
         0
       );
     }
+  };
+
+  // Track editor toolbar button usage
+  const trackToolbarAction = (action: string) => {
+    analytics.trackUIInteraction('notes_toolbar', action);
   };
 
   return (
@@ -203,7 +248,10 @@ export function Notes({ questionId }: NotesProps) {
         <div className="border-b border-purple-100">
           <div className="flex items-center gap-1 p-2">
             <button
-              onClick={() => editor.chain().focus().toggleBold().run()}
+              onClick={() => {
+                editor.chain().focus().toggleBold().run();
+                trackToolbarAction('bold');
+              }}
               className={`p-1.5 rounded-md transition-colors ${
                 editor.isActive('bold')
                   ? 'bg-purple-100 text-purple-700'
@@ -214,7 +262,10 @@ export function Notes({ questionId }: NotesProps) {
               <Bold className="w-4 h-4" />
             </button>
             <button
-              onClick={() => editor.chain().focus().toggleItalic().run()}
+              onClick={() => {
+                editor.chain().focus().toggleItalic().run();
+                trackToolbarAction('italic');
+              }}
               className={`p-1.5 rounded-md transition-colors ${
                 editor.isActive('italic')
                   ? 'bg-purple-100 text-purple-700'
@@ -225,7 +276,10 @@ export function Notes({ questionId }: NotesProps) {
               <Italic className="w-4 h-4" />
             </button>
             <button
-              onClick={() => editor.chain().focus().toggleBulletList().run()}
+              onClick={() => {
+                editor.chain().focus().toggleBulletList().run();
+                trackToolbarAction('lists');
+              }}
               className={`p-1.5 rounded-md transition-colors ${
                 editor.isActive('bulletList')
                   ? 'bg-purple-100 text-purple-700'
@@ -237,7 +291,10 @@ export function Notes({ questionId }: NotesProps) {
             </button>
             <div className="mx-1 h-6 w-px bg-gray-200" />
             <button
-              onClick={() => editor.chain().focus().undo().run()}
+              onClick={() => {
+                editor.chain().focus().undo().run();
+                trackToolbarAction('undo');
+              }}
               disabled={!editor.can().undo()}
               className={`p-1.5 rounded-md transition-colors ${
                 editor.can().undo()
@@ -249,7 +306,10 @@ export function Notes({ questionId }: NotesProps) {
               <Undo className="w-4 h-4" />
             </button>
             <button
-              onClick={() => editor.chain().focus().redo().run()}
+              onClick={() => {
+                editor.chain().focus().redo().run();
+                trackToolbarAction('redo');
+              }}
               disabled={!editor.can().redo()}
               className={`p-1.5 rounded-md transition-colors ${
                 editor.can().redo()

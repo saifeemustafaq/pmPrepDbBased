@@ -20,6 +20,7 @@ import {
   MessageCircle
 } from 'lucide-react';
 import { useAnalytics } from '../hooks/useAnalytics';
+import * as analytics from '../lib/analytics';
 
 interface SidebarProps {
   categories: Category[];
@@ -103,6 +104,7 @@ export function Sidebar({
   };
 
   const handleCategorySelect = (category: string) => {
+    analytics.trackSidebarSectionClick(category);
     trackEvent(
       'category_selection',
       'Navigation',
