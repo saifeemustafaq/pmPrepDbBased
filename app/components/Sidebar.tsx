@@ -17,10 +17,12 @@ import {
   MoreHorizontal,
   Trash2,
   Send,
-  MessageCircle
+  MessageCircle,
+  UserCircle
 } from 'lucide-react';
 import { useAnalytics } from '../hooks/useAnalytics';
 import * as analytics from '../lib/analytics';
+import { AboutDeveloper } from './AboutDeveloper';
 
 interface SidebarProps {
   categories: Category[];
@@ -79,6 +81,7 @@ export function Sidebar({
   onCollapsedChange 
 }: SidebarProps) {
   const [showMoreOptions, setShowMoreOptions] = useState(false);
+  const [showAboutDeveloper, setShowAboutDeveloper] = useState(false);
   const { trackEvent } = useAnalytics();
   const totalQuestions = categories.reduce((acc, cat) => acc + cat.totalQuestions, 0);
   const totalCompleted = categories.reduce((acc, cat) => acc + cat.completedQuestions, 0);
@@ -128,6 +131,23 @@ export function Sidebar({
         ${isCollapsed ? 'w-20' : 'w-64'} 
         transition-all duration-300 ease-in-out z-10`}
     >
+      {/* About Developer Button */}
+      <button
+        onClick={() => setShowAboutDeveloper(true)}
+        className={`absolute top-4 right-4 p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-colors ${
+          isCollapsed ? 'left-1/2 -translate-x-1/2 right-auto' : ''
+        }`}
+        title="About the Developer"
+      >
+        <UserCircle size={20} />
+      </button>
+
+      {/* About Developer Modal */}
+      <AboutDeveloper
+        isOpen={showAboutDeveloper}
+        onClose={() => setShowAboutDeveloper(false)}
+      />
+
       <div 
         onClick={() => handleSidebarToggle(!isCollapsed)}
         className="absolute -right-6 top-16 w-12 h-12 bg-white rounded-full border border-gray-200 shadow-sm flex items-center justify-center cursor-pointer hover:bg-gray-50 transition-colors z-20"
